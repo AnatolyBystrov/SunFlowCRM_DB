@@ -31,9 +31,11 @@ import {
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { navItems } from '@/config/nav-config';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { useOrganization, useUser } from '@clerk/nextjs';
 import { useFilteredNavItems } from '@/hooks/use-nav';
+import { useSessionContext } from 'supertokens-auth-react/recipe/session';
+import { signOut } from 'supertokens-web-js/recipe/session';
 import {
+  IconAdjustments,
   IconBell,
   IconChevronRight,
   IconChevronsDown,
@@ -41,7 +43,7 @@ import {
   IconLogout,
   IconUserCircle
 } from '@tabler/icons-react';
-import { SignOutButton } from '@clerk/nextjs';
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
@@ -51,10 +53,22 @@ import { OrgSwitcher } from '../org-switcher';
 export default function AppSidebar() {
   const pathname = usePathname();
   const { isOpen } = useMediaQuery();
-  const { user } = useUser();
-  const { organization } = useOrganization();
+  const session = useSessionContext();
   const router = useRouter();
   const filteredItems = useFilteredNavItems(navItems);
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/auth/sign-in');
+  };
+
+  // Extract user info from session payload (email added during session creation)
+  const userEmail = (!session.loading && session.doesSessionExist)
+    ? (session.accessTokenPayload?.email as string || 'user@example.com')
+    : 'user@example.com';
+  const userName = (!session.loading && session.doesSessionExist)
+    ? (session.accessTokenPayload?.name as string || userEmail.split('@')[0])
+    : userEmail.split('@')[0];
 
   React.useEffect(() => {
     // Side effects based on sidebar state changes
@@ -134,13 +148,11 @@ export default function AppSidebar() {
                   size='lg'
                   className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
                 >
-                  {user && (
-                    <UserAvatarProfile
-                      className='h-8 w-8 rounded-lg'
-                      showInfo
-                      user={user}
-                    />
-                  )}
+                  <UserAvatarProfile
+                    className='h-8 w-8 rounded-lg'
+                    showInfo
+                    user={{ email: userEmail, name: userName }}
+                  />
                   <IconChevronsDown className='ml-auto size-4' />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
@@ -152,41 +164,43 @@ export default function AppSidebar() {
               >
                 <DropdownMenuLabel className='p-0 font-normal'>
                   <div className='px-1 py-1.5'>
-                    {user && (
-                      <UserAvatarProfile
-                        className='h-8 w-8 rounded-lg'
-                        showInfo
-                        user={user}
-                      />
-                    )}
+                    <UserAvatarProfile
+                      className='h-8 w-8 rounded-lg'
+                      showInfo
+                      user={{ email: userEmail, name: userName }}
+                    />
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
                 <DropdownMenuGroup>
                   <DropdownMenuItem
-                    onClick={() => router.push('/dashboard/profile')}
+                    onClick={() => router.push('/settings/profile')}
                   >
                     <IconUserCircle className='mr-2 h-4 w-4' />
                     Profile
                   </DropdownMenuItem>
-                  {organization && (
-                    <DropdownMenuItem
-                      onClick={() => router.push('/dashboard/billing')}
-                    >
-                      <IconCreditCard className='mr-2 h-4 w-4' />
-                      Billing
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem
+                    onClick={() => router.push('/settings/organization/users')}
+                  >
+                    <IconAdjustments className='mr-2 h-4 w-4' />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push('/dashboard/billing')}
+                  >
+                    <IconCreditCard className='mr-2 h-4 w-4' />
+                    Billing
+                  </DropdownMenuItem>
                   <DropdownMenuItem>
                     <IconBell className='mr-2 h-4 w-4' />
                     Notifications
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
                   <IconLogout className='mr-2 h-4 w-4' />
-                  <SignOutButton redirectUrl='/auth/sign-in' />
+                  Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

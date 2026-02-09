@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// CORE INFRASTRUCTURE - Auth & Multi-Tenancy
+// ============================================
+
+model Tenant {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  plan      Plan         @default(STARTER)
+  status    TenantStatus @default(ACTIVE)
+  settings  Json         @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("tenants")
+}
+
+enum Plan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+}
+
+model User {
+  id                String     @id @default(cuid())
+  supertokensUserId String     @unique
+  tenantId          String
+
+  email     String     // Changed from @unique to allow same email in different tenants
+  firstName String?
+  lastName  String?
+  avatar    String?
+
+  role        UserRole   @default(MEMBER)
+  permissions Json       @default("{}")
+  status      UserStatus @default(ACTIVE)
+
+  jobTitle   String?
+  department String?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastOnline DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // New fields from the provided edit
+  // tradingAccounts   TradingAccount[]
+  // complianceChecks  ComplianceCheck[]
+  // auditLogsCreated  AuditLog[]          @relation("AuditLogCreatedBy")
+  // auditLogsAffected AuditLog[]          @relation("AuditLogTargetUser")
+
+  @@unique([email, tenantId], name: "user_email_tenant_unique")
+  @@index([tenantId])
+  @@index([supertokensUserId])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  UNDERWRITER
+  SALES
+  MEMBER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  INVITED
+}

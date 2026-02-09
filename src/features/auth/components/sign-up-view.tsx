@@ -1,6 +1,5 @@
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { SignUp as ClerkSignUpForm } from '@clerk/nextjs';
 import { GitHubLogoIcon } from '@radix-ui/react-icons';
 import { IconStar } from '@tabler/icons-react';
 import { Metadata } from 'next';
@@ -16,13 +15,13 @@ export default function SignUpViewPage({ stars }: { stars: number }) {
   return (
     <div className='relative h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0'>
       <Link
-        href='/examples/authentication'
+        href='/auth/sign-in'
         className={cn(
           buttonVariants({ variant: 'ghost' }),
-          'absolute top-4 right-4 hidden md:top-8 md:right-8'
+          'absolute top-4 right-4 md:top-8 md:right-8'
         )}
       >
-        Sign Up
+        Sign In
       </Link>
       <div className='bg-muted relative hidden h-full flex-col p-10 text-white lg:flex dark:border-r'>
         <div className='absolute inset-0 bg-zinc-900' />
@@ -78,11 +77,26 @@ export default function SignUpViewPage({ stars }: { stars: number }) {
               <span className='font-display font-medium'>{stars}</span>
             </div>
           </Link>
-          <ClerkSignUpForm
-            initialValues={{
-              emailAddress: 'your_mail+clerk_test@example.com'
-            }}
-          />
+
+          <div className='w-full space-y-6'>
+            <div className='flex flex-col space-y-2 text-center'>
+              <h1 className='text-2xl font-semibold tracking-tight'>
+                Invite required
+              </h1>
+              <p className='text-muted-foreground text-sm'>
+                This platform is invite-only. Please contact your administrator.
+              </p>
+            </div>
+            <div className='text-center text-sm'>
+              <Link
+                href='/auth/sign-in'
+                className='hover:text-primary underline underline-offset-4'
+              >
+                Go to sign in
+              </Link>
+            </div>
+          </div>
+
           <p className='text-muted-foreground px-8 text-center text-sm'>
             By clicking continue, you agree to our{' '}
             <Link

@@ -8,68 +8,43 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { useOrganization, Protect } from '@clerk/nextjs';
-import { BadgeCheck, Lock } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { BadgeCheck } from 'lucide-react';
 
 export default function ExclusivePage() {
-  const { organization, isLoaded } = useOrganization();
-
   return (
-    <PageContainer isloading={!isLoaded}>
-      <Protect
-        plan='pro'
-        fallback={
-          <div className='flex h-full items-center justify-center'>
-            <Alert>
-              <Lock className='h-5 w-5 text-yellow-600' />
-              <AlertDescription>
-                <div className='mb-1 text-lg font-semibold'>
-                  Pro Plan Required
-                </div>
-                <div className='text-muted-foreground'>
-                  This page is only available to organizations on the{' '}
-                  <span className='font-semibold'>Pro</span> plan.
-                  <br />
-                  Upgrade your subscription in&nbsp;
-                  <a className='underline' href='/dashboard/billing'>
-                    Billing &amp; Plans
-                  </a>
-                  .
-                </div>
-              </AlertDescription>
-            </Alert>
-          </div>
-        }
-      >
-        <div className='space-y-6'>
-          <div>
-            <h1 className='flex items-center gap-2 text-3xl font-bold tracking-tight'>
-              <BadgeCheck className='h-7 w-7 text-green-600' />
-              Exclusive Area
-            </h1>
-            <p className='text-muted-foreground'>
-              Welcome,{' '}
-              <span className='font-semibold'>{organization?.name}</span>! This
-              page contains exclusive features for Pro plan organizations.
-            </p>
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Thank You for Checking Out the Exclusive Page
-              </CardTitle>
-              <CardDescription>
-                This means you belong to an organization subscribed to the Pro
-                plan.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className='text-lg'>Have a wonderful day!</div>
-            </CardContent>
-          </Card>
+    <PageContainer>
+      <div className='space-y-6'>
+        <div>
+          <h1 className='flex items-center gap-2 text-3xl font-bold tracking-tight'>
+            <BadgeCheck className='h-7 w-7 text-green-600' />
+            Exclusive Area
+          </h1>
+          <p className='text-muted-foreground'>
+            This page demonstrates role-based access control.
+          </p>
         </div>
-      </Protect>
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Welcome to the Exclusive Page
+            </CardTitle>
+            <CardDescription>
+              Plan-based access control can be implemented using SuperTokens session claims
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className='text-muted-foreground text-sm'>
+              To implement plan-based access:
+            </p>
+            <ul className='text-muted-foreground mt-4 list-disc space-y-2 pl-6 text-sm'>
+              <li>Store user plan in database</li>
+              <li>Add plan to SuperTokens session claims</li>
+              <li>Check plan in components and API routes</li>
+              <li>Implement upgrade/downgrade flows</li>
+            </ul>
+          </CardContent>
+        </Card>
+      </div>
     </PageContainer>
   );
 }
