@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureSuperTokensInit } from './config';
-import Session from 'supertokens-node/recipe/session';
+import { getSession as getAppDirSession } from 'supertokens-node/nextjs';
 import { SessionContainer } from 'supertokens-node/recipe/session';
 
 ensureSuperTokensInit();
 
 /**
- * Verify session from request
- * @param request Next.js request object
+ * Verify session from request or current context (Server Component)
+ * @param request Optional Next.js request object (required for Middleware/API)
  * @returns Session container or null if no valid session
  */
-export async function getSession(request: NextRequest): Promise<SessionContainer | null> {
+export async function getSession(request?: NextRequest): Promise<SessionContainer | null> {
     try {
-        const session = await Session.getSession(request, NextResponse.next(), {
-            sessionRequired: false
-        });
-        return session || null;
+        // use getAppDirSession which handles both Server Components and API/Middleware
+        return await getAppDirSession(request);
     } catch (error) {
         console.error('Error getting session:', error);
         return null;
@@ -24,15 +22,13 @@ export async function getSession(request: NextRequest): Promise<SessionContainer
 
 /**
  * Verify session and require authentication
- * @param request Next.js request object
+ * @param request Optional Next.js request object
  * @throws Error if no valid session
  */
 export async function requireAuth(
-    request: NextRequest
+    request?: NextRequest
 ): Promise<SessionContainer> {
-    const session = await Session.getSession(request, NextResponse.next(), {
-        sessionRequired: true
-    });
+    const session = await getSession(request);
 
     if (!session) {
         throw new Error('Unauthorized');
@@ -44,7 +40,7 @@ export async function requireAuth(
 /**
  * Get user ID from session
  */
-export async function getUserId(request: NextRequest): Promise<string | null> {
+export async function getUserId(request?: NextRequest): Promise<string | null> {
     const session = await getSession(request);
     return session?.getUserId() || null;
 }
