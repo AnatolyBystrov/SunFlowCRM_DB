@@ -38,23 +38,10 @@
 
 ---
 
-## �🎯 Стратегический Контур (Strategy & Reporting)
+---
 
-### 1. Multi-tenancy & Isolation
-- **Shared Schema + tenantId**: Все таблицы содержат `tenant_id` (UUID).
-- **Logical Isolation**: Изоляция на уровне NestJS Guards и Prisma Middleware.
-- **RLS (Row Level Security)**: Включено как защитный слой для BI-подключений и прямого доступа к БД.
-- **Auth Separation**: SuperTokens работает в выделенной БД `auth_db`. Доменная БД `sun_uw_db` содержит таблицу `User` с линком `supertokensUserId`.
-
-### 2. Data Integrity Patterns
-- **Soft Delete**: Все критичные таблицы имеют `deleted: Boolean` и `deletedAt: DateTime?`.
-- **Partial Unique Indexes**: Уникальность (например, `email` или `policy_number`) проверяется только среди «живых» записей:
-  ```sql
-  CREATE UNIQUE INDEX idx_user_email_active_tenant ON users (tenant_id, email) WHERE deleted = false;
-  ```
-- **Temporal Data (Time-traveling)**: 
-  - **PolicyVersioning**: Использование `validFrom`, `validTo` и `isCurrentVersion`.
-  - **Audit Trail**: Полноценный журнал изменений для финансовых операций.
+> [!TIP]
+> **High-Level Strategy**: Данный документ фокусируется на технической реализации (Prisma Schema). Для ознакомления с архитектурным видением, планом масштабирования и стратегией отчетности обратитесь к **[DATA_STRATEGY.md](file:///Users/usov/Documents/DEV/SunApp%20AG/docs/DB_Info/DATA_STRATEGY.md)**.
 
 ---
 
