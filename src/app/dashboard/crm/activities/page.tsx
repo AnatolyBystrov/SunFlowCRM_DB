@@ -17,15 +17,21 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconCheck, IconTrash } from '@tabler/icons-react';
 import { ActivitiesTable } from '@/features/crm/activities/components/activities-table';
 import { ActivityFormDialog } from '@/features/crm/activities/components/activity-form-dialog';
+import { BulkActionBar } from '@/features/crm/components/bulk-action-bar';
 import {
   useActivities,
   useToggleActivityDone
 } from '@/features/crm/activities/hooks/use-activities';
-import type { PaginationState, SortingState } from '@tanstack/react-table';
+import type {
+  PaginationState,
+  SortingState,
+  RowSelectionState
+} from '@tanstack/react-table';
 import type { ActivityType } from '@prisma/client';
+import { toast } from 'sonner';
 
 /**
  * Activities Page
@@ -40,6 +46,7 @@ export default function ActivitiesPage() {
     pageSize: 10
   });
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [bulkSelection, setBulkSelection] = useState<RowSelectionState>({});
 
   const { data, isLoading, error } = useActivities({
     type: typeFilter === 'ALL' ? undefined : typeFilter,
@@ -58,6 +65,41 @@ export default function ActivitiesPage() {
     await toggleDone.mutateAsync({ id, done });
   };
 
+  // Get selected activities
+  const selectedActivityIds = Object.keys(bulkSelection).filter(
+    (key) => bulkSelection[key]
+  );
+  const selectedActivities = activities.filter((activity) =>
+    selectedActivityIds.includes(activity.id)
+  );
+
+  // Bulk action handlers
+  const handleBulkMarkDone = async () => {
+    // TODO: Implement API call for bulk mark done
+    toast.promise(
+      Promise.resolve(), // Replace with actual API call
+      {
+        loading: `Marking ${selectedActivities.length} activities as done...`,
+        success: `${selectedActivities.length} activities completed`,
+        error: 'Failed to mark activities as done'
+      }
+    );
+    setBulkSelection({});
+  };
+
+  const handleBulkDelete = async () => {
+    // TODO: Implement API call for bulk delete
+    toast.promise(
+      Promise.resolve(), // Replace with actual API call
+      {
+        loading: `Deleting ${selectedActivities.length} activities...`,
+        success: `${selectedActivities.length} activities deleted`,
+        error: 'Failed to delete activities'
+      }
+    );
+    setBulkSelection({});
+  };
+
   return (
     <div className='flex-1 space-y-4 p-4 pt-6 md:p-8'>
       <div className='flex items-center justify-between'>
@@ -72,6 +114,28 @@ export default function ActivitiesPage() {
           New Activity
         </Button>
       </div>
+
+      {/* Bulk Action Bar */}
+      {selectedActivities.length > 0 && (
+        <BulkActionBar
+          selectedCount={selectedActivities.length}
+          onClearSelection={() => setBulkSelection({})}
+          actions={[
+            {
+              label: 'Mark Done',
+              icon: IconCheck,
+              onClick: handleBulkMarkDone,
+              variant: 'default'
+            },
+            {
+              label: 'Delete',
+              icon: IconTrash,
+              onClick: handleBulkDelete,
+              variant: 'destructive'
+            }
+          ]}
+        />
+      )}
 
       <Card>
         <CardHeader>
@@ -155,6 +219,9 @@ export default function ActivitiesPage() {
               onSortingChange={setSorting}
               isLoading={isLoading}
               onToggleDone={handleToggleDone}
+              enableBulkSelection={true}
+              bulkSelection={bulkSelection}
+              onBulkSelectionChange={setBulkSelection}
             />
           )}
         </CardContent>

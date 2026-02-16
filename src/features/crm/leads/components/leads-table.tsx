@@ -7,7 +7,8 @@ import {
   flexRender,
   type ColumnDef,
   type PaginationState,
-  type SortingState
+  type SortingState,
+  type RowSelectionState
 } from '@tanstack/react-table';
 import {
   Table,
@@ -19,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   IconChevronLeft,
   IconChevronRight,
@@ -40,6 +42,11 @@ interface LeadsTableProps {
   ) => void;
   isLoading?: boolean;
   onRowClick?: (lead: LeadWithRelations) => void;
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: (
+    updater: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)
+  ) => void;
 }
 
 const getStatusBadgeVariant = (status: string) => {
@@ -64,6 +71,7 @@ const getStatusBadgeVariant = (status: string) => {
  * - Manual server-side pagination/sorting for performance
  * - Controlled state for external filter integration
  * - Memoized columns for performance
+ * - Row selection with checkbox column (Pipedrive pattern)
  */
 export function LeadsTable({
   data,
@@ -73,10 +81,43 @@ export function LeadsTable({
   sorting,
   onSortingChange,
   isLoading,
-  onRowClick
+  onRowClick,
+  enableRowSelection = false,
+  rowSelection = {},
+  onRowSelectionChange
 }: LeadsTableProps) {
   const columns = React.useMemo<ColumnDef<LeadWithRelations>[]>(
     () => [
+      // Checkbox column (only if selection enabled)
+      ...(enableRowSelection
+        ? [
+            {
+              id: 'select',
+              header: ({ table }: any) => (
+                <Checkbox
+                  checked={table.getIsAllPageRowsSelected()}
+                  onCheckedChange={(value: boolean) =>
+                    table.toggleAllPageRowsSelected(!!value)
+                  }
+                  aria-label='Select all'
+                />
+              ),
+              cell: ({ row }: any) => (
+                <Checkbox
+                  checked={row.getIsSelected()}
+                  onCheckedChange={(value: boolean) =>
+                    row.toggleSelected(!!value)
+                  }
+                  aria-label='Select row'
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                />
+              ),
+              size: 40,
+              enableSorting: false,
+              enableHiding: false
+            } as ColumnDef<LeadWithRelations>
+          ]
+        : []),
       {
         accessorKey: 'title',
         header: 'Title',
@@ -149,7 +190,7 @@ export function LeadsTable({
           })
       }
     ],
-    []
+    [enableRowSelection]
   );
 
   const table = useReactTable({
@@ -158,10 +199,15 @@ export function LeadsTable({
     pageCount,
     state: {
       pagination,
-      sorting
+      sorting,
+      ...(enableRowSelection && { rowSelection })
     },
     onPaginationChange,
     onSortingChange,
+    ...(enableRowSelection && {
+      enableRowSelection: true,
+      onRowSelectionChange
+    }),
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true, // Server-side pagination
     manualSorting: true, // Server-side sorting

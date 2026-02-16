@@ -6,7 +6,8 @@ import {
   useReactTable,
   type ColumnDef,
   type PaginationState,
-  type SortingState
+  type SortingState,
+  type RowSelectionState
 } from '@tanstack/react-table';
 import {
   Table,
@@ -42,6 +43,11 @@ interface ActivitiesTableProps {
   isLoading?: boolean;
   onToggleDone?: (id: string, done: boolean) => void;
   onRowClick?: (activity: ActivityWithRelations) => void;
+  enableBulkSelection?: boolean;
+  bulkSelection?: RowSelectionState;
+  onBulkSelectionChange?: React.Dispatch<
+    React.SetStateAction<RowSelectionState>
+  >;
 }
 
 /**
@@ -77,12 +83,45 @@ export function ActivitiesTable({
   onSortingChange,
   isLoading,
   onToggleDone,
-  onRowClick
+  onRowClick,
+  enableBulkSelection = false,
+  bulkSelection = {},
+  onBulkSelectionChange
 }: ActivitiesTableProps) {
   const columns: ColumnDef<ActivityWithRelations>[] = [
+    // Bulk selection checkbox (separate from done checkbox)
+    ...(enableBulkSelection
+      ? [
+          {
+            id: 'select',
+            header: ({ table }: any) => (
+              <Checkbox
+                checked={table.getIsAllPageRowsSelected()}
+                onCheckedChange={(value: boolean) =>
+                  table.toggleAllPageRowsSelected(!!value)
+                }
+                aria-label='Select all'
+              />
+            ),
+            cell: ({ row }: any) => (
+              <Checkbox
+                checked={row.getIsSelected()}
+                onCheckedChange={(value: boolean) =>
+                  row.toggleSelected(!!value)
+                }
+                aria-label='Select row'
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              />
+            ),
+            size: 40,
+            enableSorting: false,
+            enableHiding: false
+          } as ColumnDef<ActivityWithRelations>
+        ]
+      : []),
     {
       id: 'done',
-      header: '',
+      header: 'Done',
       cell: ({ row }) => {
         const activity = row.original;
         return (
@@ -211,10 +250,15 @@ export function ActivitiesTable({
     pageCount,
     state: {
       pagination,
-      sorting
+      sorting,
+      ...(enableBulkSelection && { rowSelection: bulkSelection })
     },
     onPaginationChange,
     onSortingChange,
+    ...(enableBulkSelection && {
+      enableRowSelection: true,
+      onRowSelectionChange: onBulkSelectionChange
+    }),
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualSorting: true,

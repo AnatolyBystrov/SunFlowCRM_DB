@@ -1,7 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { type PaginationState, type SortingState } from '@tanstack/react-table';
+import {
+  type PaginationState,
+  type SortingState,
+  type RowSelectionState
+} from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,16 +14,23 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { IconPlus, IconTarget } from '@tabler/icons-react';
+import {
+  IconPlus,
+  IconTarget,
+  IconArchive,
+  IconUserCheck
+} from '@tabler/icons-react';
 import { CreateLeadDialog } from '@/features/crm/leads/components/create-lead-dialog';
 import { LeadsFilters } from '@/features/crm/leads/components/leads-filters';
 import { LeadsTable } from '@/features/crm/leads/components/leads-table';
 import { LeadDetailSheet } from '@/features/crm/leads/components/lead-detail-sheet';
+import { BulkActionBar } from '@/features/crm/components/bulk-action-bar';
 import {
   useLeads,
   type LeadsFilters as ILeadsFilters
 } from '@/features/crm/leads/hooks/use-leads';
 import type { LeadStatus } from '@prisma/client';
+import { toast } from 'sonner';
 
 /**
  * Leads Page - CRM Lead Management
@@ -38,6 +49,7 @@ export default function LeadsPage() {
     pageSize: 10
   });
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [filters, setFilters] = useState<{
     search?: string;
     status?: LeadStatus;
@@ -57,6 +69,33 @@ export default function LeadsPage() {
   const leads = data?.leads || [];
   const total = data?.total || 0;
   const pageCount = Math.ceil(total / pagination.pageSize);
+
+  // Get selected leads
+  const selectedLeadIds = Object.keys(rowSelection).filter(
+    (key) => rowSelection[key]
+  );
+  const selectedLeads = leads.filter((lead) =>
+    selectedLeadIds.includes(lead.id)
+  );
+
+  // Bulk action handlers
+  const handleBulkArchive = async () => {
+    // TODO: Implement API call for bulk archive
+    toast.promise(
+      Promise.resolve(), // Replace with actual API call
+      {
+        loading: `Archiving ${selectedLeads.length} leads...`,
+        success: `${selectedLeads.length} leads archived`,
+        error: 'Failed to archive leads'
+      }
+    );
+    setRowSelection({});
+  };
+
+  const handleBulkAssignOwner = async () => {
+    // TODO: Implement owner selection dialog + API call
+    toast.info('Assign owner dialog coming soon');
+  };
 
   return (
     <div className='flex-1 space-y-4 p-4 pt-6 md:p-8'>
@@ -84,12 +123,35 @@ export default function LeadsPage() {
           <LeadsFilters
             onFilterChange={(newFilters) => {
               setFilters(newFilters);
-              // Reset to first page when filters change
+              // Reset to first page and clear selection when filters change
               setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+              setRowSelection({});
             }}
           />
         </CardContent>
       </Card>
+
+      {/* Bulk Action Bar */}
+      {selectedLeads.length > 0 && (
+        <BulkActionBar
+          selectedCount={selectedLeads.length}
+          onClearSelection={() => setRowSelection({})}
+          actions={[
+            {
+              label: 'Assign Owner',
+              icon: IconUserCheck,
+              onClick: handleBulkAssignOwner,
+              variant: 'outline'
+            },
+            {
+              label: 'Archive',
+              icon: IconArchive,
+              onClick: handleBulkArchive,
+              variant: 'destructive'
+            }
+          ]}
+        />
+      )}
 
       <Card>
         <CardHeader>
@@ -133,6 +195,9 @@ export default function LeadsPage() {
               sorting={sorting}
               onSortingChange={setSorting}
               isLoading={isLoading}
+              enableRowSelection={true}
+              rowSelection={rowSelection}
+              onRowSelectionChange={setRowSelection}
               onRowClick={(lead) => {
                 setSelectedLeadId(lead.id);
                 setDetailSheetOpen(true);

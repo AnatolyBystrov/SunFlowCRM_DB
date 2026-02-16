@@ -10,12 +10,24 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { IconPlus, IconSearch, IconUsers } from '@tabler/icons-react';
+import {
+  IconPlus,
+  IconSearch,
+  IconUsers,
+  IconTrash,
+  IconUserCheck
+} from '@tabler/icons-react';
 import { PersonsTable } from '@/features/crm/contacts/components/persons-table';
 import { PersonFormDialog } from '@/features/crm/contacts/components/person-form-dialog';
+import { BulkActionBar } from '@/features/crm/components/bulk-action-bar';
 import { usePersons } from '@/features/crm/contacts/hooks/use-persons';
 import { useDebounce } from '@/hooks/use-debounce';
-import type { PaginationState, SortingState } from '@tanstack/react-table';
+import type {
+  PaginationState,
+  SortingState,
+  RowSelectionState
+} from '@tanstack/react-table';
+import { toast } from 'sonner';
 
 /**
  * Persons Page
@@ -30,6 +42,7 @@ export default function PersonsPage() {
     pageSize: 10
   });
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   const { data, isLoading, error } = usePersons({
     search: debouncedSearch,
@@ -40,6 +53,33 @@ export default function PersonsPage() {
   const persons = data?.persons || [];
   const total = data?.total || 0;
   const pageCount = Math.ceil(total / pagination.pageSize);
+
+  // Get selected persons
+  const selectedPersonIds = Object.keys(rowSelection).filter(
+    (key) => rowSelection[key]
+  );
+  const selectedPersons = persons.filter((person) =>
+    selectedPersonIds.includes(person.id)
+  );
+
+  // Bulk action handlers
+  const handleBulkDelete = async () => {
+    // TODO: Implement API call for bulk delete
+    toast.promise(
+      Promise.resolve(), // Replace with actual API call
+      {
+        loading: `Deleting ${selectedPersons.length} contacts...`,
+        success: `${selectedPersons.length} contacts deleted`,
+        error: 'Failed to delete contacts'
+      }
+    );
+    setRowSelection({});
+  };
+
+  const handleBulkAssignOwner = async () => {
+    // TODO: Implement owner selection dialog + API call
+    toast.info('Assign owner dialog coming soon');
+  };
 
   return (
     <div className='flex-1 space-y-4 p-4 pt-6 md:p-8'>
@@ -73,6 +113,7 @@ export default function PersonsPage() {
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                  setRowSelection({});
                 }}
                 className='pl-9'
               />
@@ -80,6 +121,29 @@ export default function PersonsPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Bulk Action Bar */}
+          {selectedPersons.length > 0 && (
+            <div className='mb-4'>
+              <BulkActionBar
+                selectedCount={selectedPersons.length}
+                onClearSelection={() => setRowSelection({})}
+                actions={[
+                  {
+                    label: 'Assign Owner',
+                    icon: IconUserCheck,
+                    onClick: handleBulkAssignOwner,
+                    variant: 'outline'
+                  },
+                  {
+                    label: 'Delete',
+                    icon: IconTrash,
+                    onClick: handleBulkDelete,
+                    variant: 'destructive'
+                  }
+                ]}
+              />
+            </div>
+          )}
           {error ? (
             <div className='text-destructive py-12 text-center'>
               {error instanceof Error
@@ -110,6 +174,9 @@ export default function PersonsPage() {
               sorting={sorting}
               onSortingChange={setSorting}
               isLoading={isLoading}
+              enableRowSelection={true}
+              rowSelection={rowSelection}
+              onRowSelectionChange={setRowSelection}
             />
           )}
         </CardContent>
