@@ -12,6 +12,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
+import {
   IconUser,
   IconBuilding,
   IconExternalLink,
@@ -45,7 +56,6 @@ export function LeadDetailSheet({
   if (!leadId || !open) return null;
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this lead?')) return;
     await deleteLead.mutateAsync(leadId);
     onOpenChange(false);
   };
@@ -195,16 +205,36 @@ export function LeadDetailSheet({
                       <IconEdit className='mr-2 h-4 w-4' />
                       Edit Lead
                     </Button>
-                    <Button
-                      variant='destructive'
-                      size='sm'
-                      className='w-full justify-start'
-                      onClick={handleDelete}
-                      disabled={deleteLead.isPending}
-                    >
-                      <IconTrash className='mr-2 h-4 w-4' />
-                      {deleteLead.isPending ? 'Deleting...' : 'Delete Lead'}
-                    </Button>
+
+                    {/* Delete with AlertDialog */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant='destructive'
+                          size='sm'
+                          className='w-full justify-start'
+                          disabled={deleteLead.isPending}
+                        >
+                          <IconTrash className='mr-2 h-4 w-4' />
+                          {deleteLead.isPending ? 'Deleting...' : 'Delete Lead'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete &quot;{lead.title}
+                            &quot;? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDelete}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
 
