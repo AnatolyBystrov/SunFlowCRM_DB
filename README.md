@@ -1,105 +1,518 @@
-# SunFlowCRM 🚀
+# SunApp AG - Multi-Tenant Insurance Platform
 
-SunFlowCRM is a high-performance, multi-tenant CRM system built with **Next.js 15**, **SuperTokens**, **Prisma**, and **Shadcn UI**. It features a robust security architecture with Row-Level Security (RLS), custom invite-only authentication, and a premium dashboard experience.
+A modern, multi-tenant CRM and insurance underwriting platform built with **Next.js 16**, **React 19**, **Prisma**, **PostgreSQL**, **Redis**, and **TypeScript**.
+
+**Status:** Production-ready core systems (Authentication, Multi-tenancy, CRM, Notifications)
 
 ---
 
-## 🌟 Key Features
+## 🎯 What Is This?
 
-### 🔐 Authentication & Security
-- **Self-hosted SuperTokens Auth**: Fully owned authentication system with secure session management.
-- **Invite-Only System**: Public signup is disabled; only administrators can invite new users.
-- **Tenant Isolation (RLS)**: Enforced via Prisma middleware to prevent cross-tenant data leakage.
-- **Strict Role-Based Access Control (RBAC)**: Manage members with `ADMIN`, `MEMBER`, and `VIEWER` roles.
-- **Invite Reconciliation**: Seamlessly links invited users to their accounts upon registration.
+SunApp AG is an insurance platform designed for internal use with the following capabilities:
 
-### 🍱 Robust Architecture
-- **Next.js 15 (App Router)**: Leveraging the latest performance improvements and React 18/19 features.
-- **Prisma ORM & PostgreSQL**: Type-safe database interactions with a multi-tenant schema.
-- **Feature-Based Module Structure**: Scale your application with organized, isolated feature sets.
-- **Zod Runtime Validation**: Full validation of API requests and form submissions.
+- **CRM Module** - Lead & deal management, sales pipeline, contact tracking
+- **Authentication** - Self-hosted or cloud-based auth (SuperTokens/Stack Auth)
+- **Multi-Tenancy** - Complete tenant isolation with RLS and audit logging
+- **Notifications** - Real-time in-app notifications with event-driven architecture
+- **Audit Trail** - Comprehensive logging of all critical business actions
 
-### ✨ Premium UI/UX
-- **Shadcn UI & Tailwind CSS**: Beautiful, accessible, and responsive components.
-- **Inline Validation**: Powered by `react-hook-form` and `Zod` for real-time user feedback.
-- **Password visibility toggle**: A polished user experience for any password field.
-- **WCAG 2.1 AA Compliant**: Comprehensive ARIA attributes for screen readers.
-- **Empty States & Skeletons**: Gracious handling of data states for a smoother feel.
+---
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Next.js 16 Frontend (App Router)               │
+│          React 19 + TypeScript + Shadcn/Tailwind            │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        │               │               │
+    Features/        API Routes       Middleware
+    Components       (REST)           (Auth/RLS)
+        │               │               │
+        └───────────────┼───────────────┘
+                        │
+                        ▼
+        ┌──────────────────────────────┐
+        │     Services Layer            │
+        │   (BaseService + 14 CRM       │
+        │    services: Deal, Lead,      │
+        │    Activity, etc.)            │
+        └───────────┬────────────────────┘
+                    │
+        ┌───────────┼────────────┐
+        │           │            │
+        ▼           ▼            ▼
+    PostgreSQL  Redis       SuperTokens
+    (Domain)    (BullMQ)    Auth Server
+        │           │
+        │           ▼
+        │       Worker Process
+        │       (Notifications)
+        │
+        └──→ Prisma RLS Extension
+            (Tenant Isolation)
+```
+
+---
+
+## 📦 Tech Stack
+
+### Frontend
+- **Next.js** 16.0.7 - React framework with App Router
+- **React** 19.2.0 - UI library
+- **TypeScript** 5.7.2 - Type safety
+- **Tailwind CSS** 4.0.0 - Utility-first styling
+- **Shadcn UI** - High-quality React components (Dialog, Select, Tabs, etc.)
+- **React Hook Form** 7.71.1 - Form state management
+- **Zod** 4.1.8 - Schema validation
+- **TanStack Query** 5.90.20 - Server state management
+- **Zustand** 5.0.2 - Client state management
+- **TanStack Table** 8.21.2 - Data tables
+- **DND Kit** 6.3.1 - Drag & drop
+- **Recharts** 2.15.1 - Data visualization
+
+### Backend & Database
+- **Prisma** 7.4.0 - ORM for TypeScript
+- **PostgreSQL** 16 - Relational database
+- **Redis** 7 - In-memory data store (BullMQ)
+- **BullMQ** 5.69.3 - Job queue
+- **Pg** 8.18.0 - PostgreSQL client
+
+### Authentication
+- **SuperTokens** 24.0.1 - Self-hosted auth (primary)
+- **Stack Auth** 2.8.67 - Cloud/local auth (alternative)
+
+### Infrastructure & DevOps
+- **Docker** & **Docker Compose** - Containerization
+- **Sentry** 9.19.0 - Error tracking
+- **Husky** 9.1.7 - Git hooks
+- **ESLint** & **Prettier** - Code quality
+- **tsx** 4.21.0 - TypeScript execution
+
+---
+
+## 📂 Project Structure
+
+```
+SunApp AG/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── api/               # API routes (REST endpoints, 41 routes)
+│   │   │   └── crm/          # CRM endpoints (deals, leads, activities, etc.)
+│   │   ├── dashboard/         # Protected dashboard pages
+│   │   ├── auth/             # Authentication pages
+│   │   └── settings/         # Settings pages
+│   │
+│   ├── components/            # Shared React components (105 files)
+│   │   ├── layout/           # Layout components (header, sidebar)
+│   │   ├── ui/               # Shadcn UI components
+│   │   ├── forms/            # Form components
+│   │   └── modal/            # Modal dialogs
+│   │
+│   ├── features/             # Feature modules (92 files)
+│   │   ├── crm/             # CRM UI (leads, deals, contacts, activities)
+│   │   ├── notifications/    # Notification UI
+│   │   ├── auth/            # Authentication UI
+│   │   └── settings/        # Settings UI
+│   │
+│   ├── lib/                  # Core libraries & services (51 files)
+│   │   ├── services/        # Business logic services (14 CRM services)
+│   │   │   └── crm/        # CRM services (DealService, LeadService, etc.)
+│   │   ├── db/             # Database utilities
+│   │   │   ├── prisma.ts
+│   │   │   └── prisma-rls-extension.ts  # Row-Level Security
+│   │   ├── auth/           # Auth adapters & utilities
+│   │   ├── errors/         # Custom error classes
+│   │   └── utils/          # Utility functions
+│   │
+│   ├── server/              # Server-side utilities
+│   │   └── notifications/   # Notification processing logic
+│   │
+│   ├── types/               # TypeScript type definitions
+│   ├── hooks/               # Custom React hooks (13 files)
+│   └── styles/              # Global styles
+│
+├── prisma/                  # Database schema
+│   ├── schema.prisma        # 15+ models (Deal, Lead, Activity, etc.)
+│   └── migrations/          # Migration files
+│
+├── workers/                 # Background workers
+│   └── notifications-worker.ts  # BullMQ worker for notifications
+│
+├── docker-compose.yml       # Infrastructure (PostgreSQL, Redis, SuperTokens)
+├── package.json
+├── tsconfig.json
+├── next.config.ts
+└── README.md
+```
+
+### Key Directories by Purpose
+
+| Directory | Purpose | Files |
+|-----------|---------|-------|
+| `src/app/api/` | REST API endpoints | 67 files |
+| `src/components/` | Reusable React components | 105 files |
+| `src/features/` | Feature modules | 92 files |
+| `src/lib/services/` | Business logic services | 14 CRM services |
+| `src/lib/db/` | Database & RLS | Prisma + extension |
+| `workers/` | Background jobs | BullMQ worker |
+| `prisma/` | Database schema | 15+ models |
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- PostgreSQL 14+
-- Docker/Docker-Compose (optional, for SuperTokens core)
 
-### Installation
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/AnatolyBystrov/SunFlowCRM_DB.git
-    cd SunFlowCRM_DB
-    ```
+- **Node.js** 18+ (verify: `node --version`)
+- **npm** 8+ or **yarn** / **bun**
+- **Docker & Docker Compose** (for infrastructure)
+- **PostgreSQL** 16 (via Docker or local)
+- **Redis** 7 (via Docker or local)
 
-2.  **Install Dependencies**
-    ```bash
-    npm install
-    ```
+### Quick Start (5 minutes)
 
-3.  **Environment Setup**
-    Copy `.env.example` to `.env.local` and configure your credentials.
-    ```bash
-    cp .env.example .env.local
-    ```
+1. **Clone and Install**
+   ```bash
+   git clone https://github.com/your-org/sunapp-ag.git
+   cd sunapp-ag
+   npm install
+   ```
 
-4.  **Launch Database & Services**
-    ```bash
-    docker-compose up -d
-    ```
+2. **Start Infrastructure** (PostgreSQL, Redis, SuperTokens)
+   ```bash
+   docker-compose up -d
+   ```
 
-5.  **Run Migrations**
-    ```bash
-    npx prisma migrate dev
-    ```
+3. **Setup Environment**
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local with your settings
+   ```
 
-6.  **Start Development Server**
-    ```bash
-    npm run dev
-    ```
+4. **Database Migration**
+   ```bash
+   npx prisma migrate dev
+   npx prisma generate
+   ```
 
-Access the app at `http://localhost:3000`.
+5. **Start Dev Servers** (in separate terminals)
+   ```bash
+   # Terminal 1: Next.js frontend
+   npm run dev
+
+   # Terminal 2: Notifications worker
+   npm run worker:notifications
+   ```
+
+6. **Access Application**
+   - Frontend: `http://localhost:3000`
+   - Prisma Studio: `npx prisma studio` (port 5555)
 
 ---
 
-## 📂 Project Structure
+## ⚙️ Development Scripts
 
-```plaintext
-src/
-├── app/          # Next.js App Router (pages and layouts)
-├── components/   # Shared UI components (Shadcn, patterns)
-├── features/     # Isolated domain logic (Settings, Auth, CRM)
-├── lib/          # Core utilities (Auth, DB context, RLS)
-├── hooks/        # Custom React hooks
-└── types/        # TypeScript definitions
+```bash
+# Start development server
+npm run dev
+
+# Start with specific auth provider
+npm run dev:supertokens      # Use SuperTokens
+npm run dev:stack           # Use Stack Auth
+
+# Code quality
+npm run lint                 # Run ESLint
+npm run lint:fix            # Fix lint errors + format
+npm run lint:strict         # ESLint with no warnings allowed
+npm run format              # Format code with Prettier
+npm run format:check        # Check if code is formatted
+
+# Database
+npx prisma migrate dev      # Run migrations + create new
+npx prisma studio          # Open Prisma Studio
+npx prisma generate        # Generate Prisma Client
+
+# Workers
+npm run worker:notifications    # Start notifications worker
+
+# Production
+npm run build               # Build Next.js app
+npm start                   # Start production server
 ```
 
 ---
 
-## 📝 Documentation
-- [Security Features & Fixes](brain/fe19c289-f357-4253-98ce-453cb0c8b123/security_fixes_walkthrough.md)
-- [Auth System Deep-Dive](docs/AUTH_SYSTEM.md)
-- [SuperTokens Setup Guide](docs/supertokens_setup.md)
-- [UI/UX Implementation Walkthrough](brain/fe19c289-f357-4253-98ce-453cb0c8b123/ui_ux_improvements_walkthrough.md)
+## 📋 Environment Variables
+
+Create `.env.local` file with:
+
+```bash
+# Application
+NEXT_PUBLIC_APP_NAME="SunApp AG"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_API_DOMAIN="http://localhost:3000"
+
+# Auth Provider (supertokens or stack)
+AUTH_PROVIDER="supertokens"
+NEXT_PUBLIC_AUTH_PROVIDER="supertokens"
+
+# SuperTokens Configuration
+SUPERTOKENS_CONNECTION_URI="http://localhost:3567"
+SUPERTOKENS_API_KEY="<generate with: openssl rand -hex 32>"
+
+# Database
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/sun_uw"
+
+# Redis (for BullMQ)
+REDIS_URL="redis://localhost:6379"
+
+# Internal Worker Secret (for internal API calls)
+INTERNAL_WORKER_SECRET="dev-worker-secret"
+
+# Error Tracking (optional)
+SENTRY_AUTH_TOKEN="<your-sentry-token>"
+```
 
 ---
 
-## 👥 Contributors
-- **Project Lead**: @usov
-- **Architect/Developer**: AI Assistant (Antigravity) 🧠
+## 📊 Core Systems
+
+### 1. CRM Module (14 Services, ~4,234 lines)
+
+**Services:**
+- **DealService** (702 lines) - Sales opportunities, pipeline progression
+- **LeadService** (552 lines) - Lead management, conversion to deals
+- **ActivityService** (628 lines) - Tasks, calls, meetings, emails
+- **OrganizationService** (383 lines) - Company management
+- **PersonService** (316 lines) - Contact management
+- **EmailService** (282 lines) - Email tracking & integration
+- Plus: TimelineService, DashboardService, StageService, PipelineService, NoteService, FieldDefinitionService, LabelServices
+
+**Key Features:**
+- Multi-tenanted with automatic tenant isolation
+- Soft deletes (no permanent deletion)
+- Audit logging on critical actions
+- Activity date auto-computation
+- Outbox event publishing for notifications
 
 ---
 
-## ⭐ Support
-If you find this project useful, please consider giving it a star!
-🥂 Cheers!
+### 2. Multi-Tenancy & Security
+
+**Implementation:**
+- Prisma RLS Extension (`src/lib/db/prisma-rls-extension.ts`)
+  - Automatic `tenantId` filtering on all queries
+  - Relation validation (prevents cross-tenant links)
+  - Bypass mechanism for admin operations
+  
+- BaseService Pattern
+  - All services require `tenantId` and `userId` in constructor
+  - `ensureTenantAccess()` guard on all entity access
+  - Consistent `getTenantFilter()` helper
+
+**Security Layers:**
+1. Request authentication (JWT token)
+2. Tenant context extraction (from token)
+3. Row-level filtering (Prisma extension)
+4. Entity access validation (BaseService)
+
+---
+
+### 3. Authentication
+
+**Dual-Provider Support:**
+- **SuperTokens** (default) - Self-hosted auth server
+- **Stack Auth** (alternative) - Cloud or local deployment
+
+**Features:**
+- Invite-only registration (no public signup)
+- Automatic user reconciliation
+- RBAC support (Admin, Manager, Sales, etc.)
+- Session management via cookies
+
+**Flow:**
+```
+User → Frontend → Auth Provider → Auth Server
+  ↓
+  └─→ Domain User Created/Updated in PostgreSQL
+```
+
+---
+
+### 4. Notifications (Event-Driven)
+
+**Architecture:** Transactional Outbox Pattern
+
+**Flow:**
+```
+1. Business action (e.g., deal won)
+2. OutboxEvent created in same transaction
+3. Transaction commits
+4. Job enqueued to BullMQ queue (Redis)
+5. Worker processes event asynchronously
+6. Notifications created, SSE events broadcast
+```
+
+**Components:**
+- `OutboxEvent` model - Event storage with retry logic
+- `Notification` model - In-app notifications
+- `NotificationPreference` model - User notification settings
+- `workers/notifications-worker.ts` - BullMQ worker (async processing)
+- `src/server/notifications/` - Event processing logic
+
+**Reliability:**
+- Automatic retries (up to 5 attempts, exponential backoff)
+- Atomic claim pattern (only one worker processes each event)
+- Error logging and tracking
+
+---
+
+### 5. Audit Logging
+
+**Service:** `AuditService`
+
+**Features:**
+- Non-blocking fire-and-forget logging
+- Structured action tracking (DEAL_CREATED, DEAL_WON, etc.)
+- Entity correlation
+- User & timestamp tracking
+- JSON metadata storage
+
+**Audit Actions (20+):**
+- Auth: AUTH_LOGIN, AUTH_LOGOUT
+- CRM: DEAL_CREATED, DEAL_WON, LEAD_CONVERTED, etc.
+- Users: USER_INVITED, USER_ROLE_CHANGED
+
+---
+
+## 📊 API Reference
+
+**41 REST Endpoints** organized by entity:
+
+```
+CRM Endpoints:
+GET/POST    /api/crm/deals              (list, create)
+PATCH       /api/crm/deals/[id]         (update)
+DELETE      /api/crm/deals/[id]         (soft delete)
+POST        /api/crm/deals/[id]/move    (move to stage)
+POST        /api/crm/deals/[id]/won     (mark as won)
+POST        /api/crm/deals/[id]/lost    (mark as lost)
+
+GET/POST    /api/crm/leads              (+ convert, archive, restore)
+GET/POST    /api/crm/activities         (+ bulk operations)
+GET/POST    /api/crm/organizations
+GET/POST    /api/crm/persons
+GET/POST    /api/crm/pipelines
+POST        /api/crm/stages
+GET/POST    /api/crm/emails
+GET/POST    /api/crm/field-definitions
+GET/POST    /api/crm/notes
+GET         /api/crm/dashboard/...
+```
+
+**Full API Documentation:** See [docs/CRM/CRM_API.md](docs/CRM/CRM_API.md)
+
+---
+
+## 🗄️ Database Schema
+
+**15+ Models:**
+- **Contacts** - Organization, Person
+- **Sales** - Pipeline, Stage, Deal, DealLabel
+- **Leads** - Lead, LeadLabel
+- **Activities** - Activity
+- **Emails** - Email, EmailAccount
+- **Notes** - Note
+- **Infrastructure** - Tenant, User, AuditLog, OutboxEvent, Notification
+- **Fields** - FieldDefinition
+
+**Multi-Tenancy:**
+- All models include `tenantId` field
+- Unique constraints are tenant-scoped
+- Soft deletes with `deleted` + `deletedAt`
+
+**Full Schema Reference:** See [docs/CRM/CRM_DATA_MODELS.md](docs/CRM/CRM_DATA_MODELS.md)
+
+---
+
+## 🔍 Documentation
+
+- **[docs/CRM/CRM_README.md](docs/CRM/CRM_README.md)** - CRM module index
+- **[docs/CRM/CRM_SERVICES_ARCHITECTURE.md](docs/CRM/CRM_SERVICES_ARCHITECTURE.md)** - 14 services documentation
+- **[docs/CRM/CRM_API.md](docs/CRM/CRM_API.md)** - All 41 REST endpoints
+- **[docs/CRM/CRM_DATA_MODELS.md](docs/CRM/CRM_DATA_MODELS.md)** - Prisma schema reference
+- **[docs/CRM/CRM_INTEGRATIONS.md](docs/CRM/CRM_INTEGRATIONS.md)** - Notifications & event integration
+- **[docs/NOTIFICATIONS/implementation_plan.md](docs/NOTIFICATIONS/implementation_plan.md)** - Notification system deep-dive
+- **[docs/AUTH/AUTH_ARCHITECTURE_RU.md](docs/AUTH/AUTH_ARCHITECTURE_RU.md)** - Authentication architecture
+
+---
+
+## 🧪 Testing
+
+Currently no automated tests in main repo. Testing guidance:
+
+- **Unit Tests** - Consider Jest + React Testing Library for components
+- **Integration Tests** - Prisma with test database
+- **E2E Tests** - Playwright or Cypress for full workflows
+- **API Tests** - Postman or automated testing framework
+
+---
+
+## 🚀 Deployment
+
+### Local Development
+```bash
+docker-compose up -d          # Start infrastructure
+npm install && npx prisma migrate dev
+npm run dev                   # Next.js server
+npm run worker:notifications  # Worker process
+```
+
+### Production Checklist
+- [ ] Set production environment variables
+- [ ] Use strong `SUPERTOKENS_API_KEY` and `INTERNAL_WORKER_SECRET`
+- [ ] Configure PostgreSQL backups
+- [ ] Set up Redis persistence
+- [ ] Enable HTTPS/SSL
+- [ ] Configure Sentry for error tracking
+- [ ] Run migrations: `npx prisma migrate deploy`
+- [ ] Build application: `npm run build`
+- [ ] Start server: `npm start`
+- [ ] Run notifications worker separately
+
+---
+
+## 📞 Support & Contributing
+
+For questions, bugs, or feature requests:
+1. Check [documentation](docs/)
+2. Review [existing issues](https://github.com/your-org/sunapp-ag/issues)
+3. Create a new issue with details
+
+---
+
+## 📄 License
+
+Internal Use Only - SunApp AG
+
+---
+
+## 🎉 Getting Help
+
+| Topic | Resource |
+|-------|----------|
+| CRM Features | [docs/CRM/CRM_README.md](docs/CRM/CRM_README.md) |
+| API Endpoints | [docs/CRM/CRM_API.md](docs/CRM/CRM_API.md) |
+| Services | [docs/CRM/CRM_SERVICES_ARCHITECTURE.md](docs/CRM/CRM_SERVICES_ARCHITECTURE.md) |
+| Database Schema | [docs/CRM/CRM_DATA_MODELS.md](docs/CRM/CRM_DATA_MODELS.md) |
+| Notifications | [docs/CRM/CRM_INTEGRATIONS.md](docs/CRM/CRM_INTEGRATIONS.md) |
+| Authentication | [docs/AUTH/AUTH_ARCHITECTURE_RU.md](docs/AUTH/AUTH_ARCHITECTURE_RU.md) |
+
+---
+
+**Last Updated:** February 19, 2026  
+**Current Version:** 1.0.0 (Production-Ready Core)  
+**Next Milestone:** v2.0 (Advanced Permissions, Analytics, Workflow Automation)
