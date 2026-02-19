@@ -81,8 +81,8 @@ SunApp AG is an insurance platform designed for internal use with the following 
 - **Pg** 8.18.0 - PostgreSQL client
 
 ### Authentication
-- **SuperTokens** 24.0.1 - Self-hosted auth (primary)
-- **Stack Auth** 2.8.67 - Cloud/local auth (alternative)
+- **SuperTokens** 24.0.1 - Self-hosted auth server (primary)
+- **Stack Auth** 2.8.67 - Self-hosted or cloud auth (alternative)
 
 ### Infrastructure & DevOps
 - **Docker** & **Docker Compose** - Containerization
@@ -131,7 +131,7 @@ SunApp AG/
 │   │   └── notifications/   # Notification processing logic
 │   │
 │   ├── types/               # TypeScript type definitions
-│   ├── hooks/               # Custom React hooks (13 files)
+│   ├── hooks/               # Custom React hooks (7 files)
 │   └── styles/              # Global styles
 │
 ├── prisma/                  # Database schema
@@ -152,13 +152,13 @@ SunApp AG/
 
 | Directory | Purpose | Files |
 |-----------|---------|-------|
-| `src/app/api/` | REST API endpoints | 67 files |
+| `src/app/api/` | REST API endpoints | 53 files |
 | `src/components/` | Reusable React components | 105 files |
 | `src/features/` | Feature modules | 92 files |
 | `src/lib/services/` | Business logic services | 14 CRM services |
 | `src/lib/db/` | Database & RLS | Prisma + extension |
 | `workers/` | Background jobs | BullMQ worker |
-| `prisma/` | Database schema | 15+ models |
+| `prisma/` | Database schema | 25 models |
 
 ---
 
@@ -176,40 +176,53 @@ SunApp AG/
 
 1. **Clone and Install**
    ```bash
-   git clone https://github.com/your-org/sunapp-ag.git
-   cd sunapp-ag
+   git clone https://github.com/your-org/SunFlowCRM.git
+   cd SunFlowCRM
    npm install
    ```
 
 2. **Start Infrastructure** (PostgreSQL, Redis, SuperTokens)
    ```bash
    docker-compose up -d
+   # Wait for services to be healthy (check with: docker-compose ps)
+   # Verify: docker-compose logs -f supertokens (wait for "API started")
    ```
 
 3. **Setup Environment**
    ```bash
    cp .env.example .env.local
-   # Edit .env.local with your settings
+   # Edit .env.local with your settings (optional for local dev)
+   # Key variables: DATABASE_URL, REDIS_URL, SUPERTOKENS_CONNECTION_URI, INTERNAL_WORKER_SECRET
    ```
 
-4. **Database Migration**
+4. **Database Migration & Setup**
    ```bash
    npx prisma migrate dev
+   # Creates schema, runs migrations, generates Prisma client
    npx prisma generate
    ```
 
 5. **Start Dev Servers** (in separate terminals)
    ```bash
-   # Terminal 1: Next.js frontend
+   # Terminal 1: Next.js frontend + API routes
    npm run dev
+   # Access: http://localhost:3000
 
-   # Terminal 2: Notifications worker
+   # Terminal 2: Notifications worker (background jobs)
    npm run worker:notifications
+   # Monitors: Redis queue for notification events
    ```
 
 6. **Access Application**
-   - Frontend: `http://localhost:3000`
-   - Prisma Studio: `npx prisma studio` (port 5555)
+   - **Frontend**: http://localhost:3000
+   - **SuperTokens Dashboard**: http://localhost:3567/auth (admin console)
+   - **Prisma Studio**: `npx prisma studio` → http://localhost:5555 (database GUI)
+   - **Redis**: localhost:6379 (command: `redis-cli`)
+   - **PostgreSQL**: localhost:5432 (user: `postgres`, password: `postgres`)
+
+   **Optional Tools** (start with `docker-compose up -d minio n8n`):
+   - **MinIO Console**: http://localhost:9001 (S3 compatible storage)
+   - **n8n Automation**: http://localhost:5678 (workflow automation)
 
 ---
 
@@ -419,7 +432,7 @@ GET         /api/crm/dashboard/...
 
 ## 🗄️ Database Schema
 
-**15+ Models:**
+**25 Models:**
 - **Contacts** - Organization, Person
 - **Sales** - Pipeline, Stage, Deal, DealLabel
 - **Leads** - Lead, LeadLabel
@@ -465,10 +478,34 @@ Currently no automated tests in main repo. Testing guidance:
 
 ### Local Development
 ```bash
-docker-compose up -d          # Start infrastructure
-npm install && npx prisma migrate dev
-npm run dev                   # Next.js server
-npm run worker:notifications  # Worker process
+# 1. Start infrastructure (PostgreSQL, Redis, SuperTokens)
+docker-compose up -d
+
+# 2. Wait for services to be healthy
+docker-compose ps    # Check Status column
+docker-compose logs -f supertokens  # Wait for "API started"
+
+# 3. Install dependencies and run migrations
+npm install
+npx prisma migrate dev
+npx prisma generate
+
+# 4. Setup environment (optional for local dev)
+cp .env.example .env.local
+
+# 5. Start development servers (in separate terminals)
+# Terminal 1: Frontend + API
+npm run dev
+
+# Terminal 2: Notifications worker
+npm run worker:notifications
+
+# 6. Access services
+# Frontend: http://localhost:3000
+# SuperTokens: http://localhost:3567/auth
+# Prisma Studio: npx prisma studio → http://localhost:5555
+# Redis: redis-cli -h localhost -p 6379
+# PostgreSQL: psql -h localhost -U postgres -d sun_uw
 ```
 
 ### Production Checklist
