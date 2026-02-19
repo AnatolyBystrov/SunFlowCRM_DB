@@ -172,7 +172,7 @@ SunFlowCRM/
 - **PostgreSQL** 16 (via Docker or local)
 - **Redis** 7 (via Docker or local)
 
-### Quick Start (5 minutes)
+### Quick Start
 
 1. **Clone and Install**
    ```bash
@@ -181,48 +181,88 @@ SunFlowCRM/
    npm install
    ```
 
-2. **Start Infrastructure** (PostgreSQL, Redis, SuperTokens)
-   ```bash
-   docker-compose up -d
-   # Wait for services to be healthy (check with: docker-compose ps)
-   # Verify: docker-compose logs -f supertokens (wait for "API started")
-   ```
-
-3. **Setup Environment**
+2. **Setup Environment**
    ```bash
    cp .env.example .env.local
-   # Edit .env.local with your settings (optional for local dev)
-   # Key variables: DATABASE_URL, REDIS_URL, SUPERTOKENS_CONNECTION_URI, INTERNAL_WORKER_SECRET
+   # Key variables: DATABASE_URL, REDIS_URL, INTERNAL_WORKER_SECRET
    ```
 
-4. **Database Migration & Setup**
+3. **Database Migration**
    ```bash
-   npx prisma migrate dev
-   # Creates schema, runs migrations, generates Prisma client
-   npx prisma generate
+   npx prisma migrate dev   # runs migrations + generates Prisma client
    ```
 
-5. **Start Dev Servers** (in separate terminals)
-   ```bash
-   # Terminal 1: Next.js frontend + API routes
-   npm run dev
-   # Access: http://localhost:3000
+4. **Start the project** — choose auth provider (see below)
 
-   # Terminal 2: Notifications worker (background jobs)
+5. **Start Notifications Worker** (separate terminal)
+   ```bash
    npm run worker:notifications
-   # Monitors: Redis queue for notification events
    ```
 
-6. **Access Application**
-   - **Frontend**: http://localhost:3000
-   - **SuperTokens Dashboard**: http://localhost:3567/auth (admin console)
-   - **Prisma Studio**: `npx prisma studio` → http://localhost:5555 (database GUI)
-   - **Redis**: localhost:6379 (command: `redis-cli`)
-   - **PostgreSQL**: localhost:5432 (user: `postgres`, password: `postgres`)
+---
 
-   **Optional Tools** (start with `docker-compose up -d minio n8n`):
-   - **MinIO Console**: http://localhost:9001 (S3 compatible storage)
-   - **n8n Automation**: http://localhost:5678 (workflow automation)
+### Option A: SuperTokens (default, self-hosted)
+
+```bash
+npm run dev:supertokens
+```
+
+Скрипт автоматически:
+- Переключает `.env` на `AUTH_PROVIDER=supertokens`
+- Останавливает Stack Auth контейнеры (экономия RAM)
+- Запускает PostgreSQL + Redis + SuperTokens через Docker
+- Ждёт готовности SuperTokens
+- Очищает кэш Next.js
+- Запускает `npm run dev`
+
+**Адреса сервисов:**
+| Сервис | URL |
+|--------|-----|
+| **Frontend** | http://localhost:3000 |
+| **SuperTokens Core** | http://localhost:3567 |
+| **PostgreSQL** | localhost:5432 (user: `postgres`, pass: `postgres`) |
+| **Redis** | localhost:6379 |
+| **Prisma Studio** | `npx prisma studio` → http://localhost:5555 |
+
+---
+
+### Option B: Stack Auth (self-hosted, alternative)
+
+```bash
+npm run dev:stack
+```
+
+Скрипт автоматически:
+- Переключает `.env` на `AUTH_PROVIDER=stack`
+- Останавливает SuperTokens контейнер (экономия RAM)
+- Запускает PostgreSQL + Redis + Stack Auth через Docker
+- Ждёт готовности Stack Auth Dashboard
+- Очищает кэш Next.js
+- Запускает `npm run dev`
+
+> **Первый запуск:** Откройте http://localhost:8101, создайте проект, скопируйте ключи в `.env`:
+> ```
+> NEXT_PUBLIC_STACK_PROJECT_ID="proj_..."
+> NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY="pck_..."
+> STACK_SECRET_SERVER_KEY="ssk_..."
+> ```
+
+**Адреса сервисов:**
+| Сервис | URL |
+|--------|-----|
+| **Frontend** | http://localhost:3000 |
+| **Stack Dashboard** | http://localhost:8101 |
+| **Stack API** | http://localhost:8102 |
+| **Inbucket (Email)** | http://localhost:8105 |
+| **PostgreSQL** | localhost:5432 (user: `postgres`, pass: `postgres`) |
+| **Redis** | localhost:6379 |
+| **Prisma Studio** | `npx prisma studio` → http://localhost:5555 |
+
+---
+
+**Optional Tools** (start with `docker-compose up -d minio n8n`):
+- **MinIO Console**: http://localhost:9001 (S3 compatible storage)
+- **n8n Automation**: http://localhost:5678 (workflow automation)
 
 ---
 
@@ -477,35 +517,22 @@ Currently no automated tests in main repo. Testing guidance:
 ## 🚀 Deployment
 
 ### Local Development
+
 ```bash
-# 1. Start infrastructure (PostgreSQL, Redis, SuperTokens)
-docker-compose up -d
-
-# 2. Wait for services to be healthy
-docker-compose ps    # Check Status column
-docker-compose logs -f supertokens  # Wait for "API started"
-
-# 3. Install dependencies and run migrations
+# 1. Install and configure
+git clone https://github.com/your-org/SunFlowCRM.git && cd SunFlowCRM
 npm install
-npx prisma migrate dev
-npx prisma generate
-
-# 4. Setup environment (optional for local dev)
 cp .env.example .env.local
+npx prisma migrate dev
 
-# 5. Start development servers (in separate terminals)
-# Terminal 1: Frontend + API
-npm run dev
+# 2. Start with SuperTokens (Terminal 1)
+npm run dev:supertokens
 
-# Terminal 2: Notifications worker
+# OR start with Stack Auth (Terminal 1)
+npm run dev:stack
+
+# 3. Start notifications worker (Terminal 2)
 npm run worker:notifications
-
-# 6. Access services
-# Frontend: http://localhost:3000
-# SuperTokens: http://localhost:3567/auth
-# Prisma Studio: npx prisma studio → http://localhost:5555
-# Redis: redis-cli -h localhost -p 6379
-# PostgreSQL: psql -h localhost -U postgres -d sun_uw
 ```
 
 ### Production Checklist
