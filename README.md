@@ -1,4 +1,4 @@
-# SunApp AG - Multi-Tenant Insurance Platform
+# SunFlowCRM - Multi-Tenant Insurance Platform
 
 A modern, multi-tenant CRM and insurance underwriting platform built with **Next.js 16**, **React 19**, **Prisma**, **PostgreSQL**, **Redis**, and **TypeScript**.
 
@@ -8,7 +8,7 @@ A modern, multi-tenant CRM and insurance underwriting platform built with **Next
 
 ## 🎯 What Is This?
 
-SunApp AG is an insurance platform designed for internal use with the following capabilities:
+SunFlowCRM is an insurance platform designed for internal use with the following capabilities:
 
 - **CRM Module** - Lead & deal management, sales pipeline, contact tracking
 - **Authentication** - Self-hosted or cloud-based auth (SuperTokens/Stack Auth)
@@ -96,7 +96,7 @@ SunApp AG is an insurance platform designed for internal use with the following 
 ## 📂 Project Structure
 
 ```
-SunApp AG/
+SunFlowCRM/
 ├── src/
 │   ├── app/                    # Next.js App Router
 │   │   ├── api/               # API routes (REST endpoints, 41 routes)
@@ -135,7 +135,7 @@ SunApp AG/
 │   └── styles/              # Global styles
 │
 ├── prisma/                  # Database schema
-│   ├── schema.prisma        # 15+ models (Deal, Lead, Activity, etc.)
+│   ├── schema.prisma        # 25 models (Deal, Lead, Activity, etc.)
 │   └── migrations/          # Migration files
 │
 ├── workers/                 # Background workers
@@ -264,7 +264,7 @@ Create `.env.local` file with:
 
 ```bash
 # Application
-NEXT_PUBLIC_APP_NAME="SunApp AG"
+NEXT_PUBLIC_APP_NAME="SunFlowCRM"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXT_PUBLIC_API_DOMAIN="http://localhost:3000"
 
@@ -433,14 +433,14 @@ GET         /api/crm/dashboard/...
 ## 🗄️ Database Schema
 
 **25 Models:**
-- **Contacts** - Organization, Person
-- **Sales** - Pipeline, Stage, Deal, DealLabel
-- **Leads** - Lead, LeadLabel
-- **Activities** - Activity
-- **Emails** - Email, EmailAccount
-- **Notes** - Note
-- **Infrastructure** - Tenant, User, AuditLog, OutboxEvent, Notification
-- **Fields** - FieldDefinition
+- **Contacts** (2) - Organization, Person
+- **Sales** (6) - Pipeline, Stage, Deal, DealLabel, DealLabelLink, DealPermittedUser
+- **Leads** (4) - Lead, LeadLabel, LeadLabelLink, LeadPermittedUser
+- **Activities** (1) - Activity
+- **Emails** (3) - Email, EmailAccount, EmailTrackingEvent
+- **Notes** (1) - Note
+- **Infrastructure** (7) - Tenant, User, AuditLog, OutboxEvent, Notification, NotificationPreference, EntityWatcher
+- **Fields** (1) - FieldDefinition
 
 **Multi-Tenancy:**
 - All models include `tenantId` field
@@ -526,14 +526,14 @@ npm run worker:notifications
 
 For questions, bugs, or feature requests:
 1. Check [documentation](docs/)
-2. Review [existing issues](https://github.com/your-org/sunapp-ag/issues)
+2. Review [existing issues](https://github.com/your-org/SunFlowCRM/issues)
 3. Create a new issue with details
 
 ---
 
 ## 📄 License
 
-Internal Use Only - SunApp AG
+Internal Use Only - SunFlowCRM
 
 ---
 
