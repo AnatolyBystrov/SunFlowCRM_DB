@@ -1,5 +1,5 @@
 services:
-  # ─── Infrastructure ──────────────────────────────────────────────────────────
+  # ─── Main App Database ───────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: sunflow-postgres
@@ -16,6 +16,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── Redis ───────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: sunflow-redis
@@ -29,21 +30,94 @@ services:
       timeout: 5s
       retries: 5
 
-  supertokens:
-    image: supertokens/supertokens-postgresql:latest
-    container_name: sunflow-supertokens
+  # ─── Stack Auth: Dedicated Database ─────────────────────────────────────────
+  stack-postgres:
+    image: postgres:16-alpine
+    container_name: sunflow-stack-postgres
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      POSTGRESQL_CONNECTION_URI: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sun_uw}"
-      API_KEYS: "${SUPERTOKENS_API_KEY:?SUPERTOKENS_API_KEY is required}"
+      POSTGRES_DB: stackauth
+      POSTGRES_USER: stackauth
+      POSTGRES_PASSWORD: ${STACK_DB_PASSWORD:?STACK_DB_PASSWORD is required}
+    volumes:
+      - stack_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
+      test: ["CMD-SHELL", "pg_isready -U stackauth"]
       interval: 10s
       timeout: 5s
+      retries: 5
+
+  # ─── Stack Auth: ClickHouse (analytics) ─────────────────────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: sunflow-clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: stackframe
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD is required}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--password=${CLICKHOUSE_PASSWORD}", "--query", "SELECT 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─── Stack Auth Server ───────────────────────────────────────────────────────
+  stack-server:
+    image: stackauth/server:latest
+    container_name: sunflow-stack-server
+    restart: unless-stopped
+    depends_on:
+      stack-postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      # Database
+      STACK_DATABASE_CONNECTION_STRING: "postgresql://stackauth:${STACK_DB_PASSWORD}@stack-postgres:5432/stackauth"
+
+      # Server secrets & URLs
+      STACK_SERVER_SECRET: "${STACK_SERVER_SECRET:?STACK_SERVER_SECRET is required}"
+      STACK_BASE_URL: "${NEXT_PUBLIC_STACK_URL:?NEXT_PUBLIC_STACK_URL is required}"
+      NEXT_PUBLIC_STACK_URL: "${NEXT_PUBLIC_STACK_URL}"
+      NEXT_PUBLIC_STACK_API_URL: "${NEXT_PUBLIC_STACK_API_URL:?NEXT_PUBLIC_STACK_API_URL is required}"
+
+      # Ports
+      PORT: 8101
+      NEXT_PUBLIC_STACK_DASHBOARD_PORT: 8101
+      NEXT_PUBLIC_STACK_BACKEND_PORT: 8102
+
+      NODE_ENV: production
+
+      # Production email (SMTP)
+      STACK_EMAIL_HOST: "${STACK_EMAIL_HOST:?STACK_EMAIL_HOST is required}"
+      STACK_EMAIL_PORT: "${STACK_EMAIL_PORT:-587}"
+      STACK_EMAIL_USER: "${STACK_EMAIL_USER:?STACK_EMAIL_USER is required}"
+      STACK_EMAIL_PASSWORD: "${STACK_EMAIL_PASSWORD:?STACK_EMAIL_PASSWORD is required}"
+      STACK_EMAIL_SENDER: "${STACK_EMAIL_SENDER:-noreply@yourdomain.com}"
+      STACK_EMAIL_SECURE: "${STACK_EMAIL_SECURE:-true}"
+
+      # ClickHouse
+      STACK_CLICKHOUSE_URL: "http://clickhouse:8123"
+      STACK_CLICKHOUSE_ADMIN_USER: default
+      STACK_CLICKHOUSE_ADMIN_PASSWORD: "${CLICKHOUSE_PASSWORD}"
+      STACK_CLICKHOUSE_EXTERNAL_USER: default
+      STACK_CLICKHOUSE_EXTERNAL_PASSWORD: "${CLICKHOUSE_PASSWORD}"
+
+      # Run migrations on startup
+      STACK_RUN_MIGRATIONS: "true"
+    ports:
+      - "${STACK_DASHBOARD_PORT:-8101}:8101"
+      - "${STACK_API_PORT:-8102}:8102"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8102/api/v1/health"]
+      interval: 15s
+      timeout: 10s
       retries: 10
+      start_period: 30s
 
   # ─── Migrations (runs once and exits) ────────────────────────────────────────
   migrate:
@@ -67,7 +141,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      supertokens:
+      stack-server:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
@@ -82,13 +156,18 @@ services:
       NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL is required}"
       NEXT_PUBLIC_API_DOMAIN: "${NEXT_PUBLIC_APP_URL}"
 
-      # Auth provider
-      AUTH_PROVIDER: "${AUTH_PROVIDER:-supertokens}"
-      NEXT_PUBLIC_AUTH_PROVIDER: "${AUTH_PROVIDER:-supertokens}"
+      # Auth provider — Stack Auth
+      AUTH_PROVIDER: "stack"
+      NEXT_PUBLIC_AUTH_PROVIDER: "stack"
 
-      # SuperTokens
-      SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
-      SUPERTOKENS_API_KEY: "${SUPERTOKENS_API_KEY}"
+      # Stack Auth keys (obtained from Stack Auth Dashboard after first boot)
+      NEXT_PUBLIC_STACK_PROJECT_ID: "${NEXT_PUBLIC_STACK_PROJECT_ID:?NEXT_PUBLIC_STACK_PROJECT_ID is required}"
+      NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY: "${NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY:?NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY is required}"
+      STACK_SECRET_SERVER_KEY: "${STACK_SECRET_SERVER_KEY:?STACK_SECRET_SERVER_KEY is required}"
+
+      # Stack Auth server URLs
+      NEXT_PUBLIC_STACK_URL: "${NEXT_PUBLIC_STACK_URL}"
+      NEXT_PUBLIC_STACK_API_URL: "${NEXT_PUBLIC_STACK_API_URL}"
 
       # Database
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sun_uw}"
@@ -104,7 +183,7 @@ services:
       NEXT_PUBLIC_SENTRY_ORG: "${NEXT_PUBLIC_SENTRY_ORG:-}"
       NEXT_PUBLIC_SENTRY_PROJECT: "${NEXT_PUBLIC_SENTRY_PROJECT:-}"
       SENTRY_AUTH_TOKEN: "${SENTRY_AUTH_TOKEN:-}"
-      NEXT_PUBLIC_SENTRY_DISABLED: "${NEXT_PUBLIC_SENTRY_DISABLED:-true}"
+      NEXT_PUBLIC_SENTRY_DISABLED: "${NEXT_PUBLIC_SENTRY_DISABLED:-false}"
 
   # ─── Background worker ────────────────────────────────────────────────────────
   worker:
@@ -135,3 +214,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  stack_postgres_data:
+  clickhouse_data:
