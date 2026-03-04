@@ -7,11 +7,12 @@ import {
 } from '@/lib/errors/app-errors';
 import { getAuthAdapter } from '@/lib/auth/providers/factory';
 
+import type { SessionPayload } from '@/lib/auth/providers/types';
 /**
  * Re-export SessionPayload from types for backward compatibility.
  * Avoid importing from this file - prefer importing from @/lib/auth/providers/types
  */
-export type { SessionPayload } from '@/lib/auth/providers/types';
+export type { SessionPayload };
 
 /**
  * Get session payload without setting up RLS context.

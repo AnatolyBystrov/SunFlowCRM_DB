@@ -4,10 +4,7 @@ import React from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import {
-  IconPaperclip,
-  IconMessageCircle2
-} from '@tabler/icons-react';
+import { IconPaperclip, IconMessageCircle2 } from '@tabler/icons-react';
 import { formatCurrency } from '@/lib/format-currency';
 import type { DealWithRelations } from '@/lib/api/crm-types';
 
@@ -18,9 +15,18 @@ interface DealCardProps {
 }
 
 const PRIORITY_STYLES: Record<string, { bg: string; text: string }> = {
-  HIGH: { bg: 'bg-zinc-900 dark:bg-zinc-100', text: 'text-white dark:text-zinc-900' },
-  NORMAL: { bg: 'bg-zinc-200 dark:bg-zinc-700', text: 'text-zinc-700 dark:text-zinc-200' },
-  LOW: { bg: 'bg-zinc-100 dark:bg-zinc-800', text: 'text-zinc-500 dark:text-zinc-400' }
+  HIGH: {
+    bg: 'bg-zinc-900 dark:bg-zinc-100',
+    text: 'text-white dark:text-zinc-900'
+  },
+  NORMAL: {
+    bg: 'bg-zinc-200 dark:bg-zinc-700',
+    text: 'text-zinc-700 dark:text-zinc-200'
+  },
+  LOW: {
+    bg: 'bg-zinc-100 dark:bg-zinc-800',
+    text: 'text-zinc-500 dark:text-zinc-400'
+  }
 };
 
 function getInitials(firstName?: string | null, lastName?: string | null) {
@@ -43,7 +49,8 @@ export const DealCard = React.memo(function DealCard({
     : deal.organization?.name || null;
 
   const probability =
-    deal.probability ?? (deal.stage as { probability?: number })?.probability;
+    deal.probability ??
+    (deal.stage as unknown as { probability?: number })?.probability;
   const pct = probability != null ? Number(probability) : null;
 
   const notesCount = deal._count?.notes ?? 0;
@@ -61,7 +68,7 @@ export const DealCard = React.memo(function DealCard({
       )}
     >
       {/* Title */}
-      <h4 className='line-clamp-2 text-sm font-semibold leading-snug'>
+      <h4 className='line-clamp-2 text-sm leading-snug font-semibold'>
         {deal.title}
       </h4>
 
@@ -81,19 +88,21 @@ export const DealCard = React.memo(function DealCard({
               </AvatarFallback>
             </Avatar>
           )}
-          {deal.creator &&
-            deal.creator.id !== deal.owner?.id && (
-              <Avatar className='ring-background h-7 w-7 ring-2'>
-                <AvatarFallback className='bg-orange-100 text-[10px] font-medium text-orange-600 dark:bg-orange-900 dark:text-orange-300'>
-                  {getInitials(deal.creator.firstName, deal.creator.lastName)}
-                </AvatarFallback>
-              </Avatar>
-            )}
+          {deal.creator && deal.creator.id !== deal.owner?.id && (
+            <Avatar className='ring-background h-7 w-7 ring-2'>
+              <AvatarFallback className='bg-orange-100 text-[10px] font-medium text-orange-600 dark:bg-orange-900 dark:text-orange-300'>
+                {getInitials(deal.creator.firstName, deal.creator.lastName)}
+              </AvatarFallback>
+            </Avatar>
+          )}
         </div>
 
         {pct != null && (
           <div className='flex items-center gap-1'>
-            <svg viewBox='0 0 20 20' className={cn('h-4 w-4', probabilityColor(pct))}>
+            <svg
+              viewBox='0 0 20 20'
+              className={cn('h-4 w-4', probabilityColor(pct))}
+            >
               <circle
                 cx='10'
                 cy='10'

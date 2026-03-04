@@ -8,7 +8,7 @@ import { StackClientApp } from '@stackframe/stack';
  *
  * Requires NEXT_PUBLIC_STACK_PROJECT_ID and NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY.
  */
-let _stackClientApp: StackClientApp | null = null;
+let _stackClientApp: StackClientApp<true> | null = null;
 
 /**
  * Validate Stack Auth credentials are properly configured.
@@ -32,7 +32,7 @@ function validateStackAuthCredentials(): boolean {
   return true;
 }
 
-export function getStackClientApp(): StackClientApp {
+export function getStackClientApp(): StackClientApp<true> {
   if (!_stackClientApp) {
     // Validate credentials before creating the app
     if (!validateStackAuthCredentials()) {

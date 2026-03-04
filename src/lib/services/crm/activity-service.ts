@@ -26,7 +26,10 @@ function computeDefaultRemindAt(dueAt: Date): Date {
  * information it expects.
  */
 function toActivityUpdateInput(
-  input: Omit<UpdateActivityInput, 'dealId' | 'leadId' | 'personId' | 'orgId' | 'ownerId'> & {
+  input: Omit<
+    UpdateActivityInput,
+    'dealId' | 'leadId' | 'personId' | 'orgId' | 'ownerId'
+  > & {
     dealId?: string | null;
     leadId?: string | null;
     personId?: string | null;
@@ -38,14 +41,7 @@ function toActivityUpdateInput(
     completedAt?: Date | null;
   }
 ): Prisma.ActivityUpdateInput {
-  const {
-    dealId,
-    leadId,
-    personId,
-    orgId,
-    ownerId,
-    ...rest
-  } = input;
+  const { dealId, leadId, personId, orgId, ownerId, ...rest } = input;
 
   const data: Prisma.ActivityUpdateInput = { ...rest };
 
@@ -56,10 +52,14 @@ function toActivityUpdateInput(
     data.lead = leadId ? { connect: { id: leadId } } : { disconnect: true };
   }
   if (personId !== undefined) {
-    data.person = personId ? { connect: { id: personId } } : { disconnect: true };
+    data.person = personId
+      ? { connect: { id: personId } }
+      : { disconnect: true };
   }
   if (orgId !== undefined) {
-    data.organization = orgId ? { connect: { id: orgId } } : { disconnect: true };
+    data.organization = orgId
+      ? { connect: { id: orgId } }
+      : { disconnect: true };
   }
   if (ownerId !== undefined) {
     data.owner = { connect: { id: ownerId } };
@@ -82,6 +82,7 @@ export interface CreateActivityInput {
   personId?: string;
   orgId?: string;
   note?: string;
+  ownerId?: string;
 }
 
 export interface UpdateActivityInput {
@@ -128,7 +129,13 @@ export interface ActivityFilters {
 
 export interface BulkActivityInput {
   ids: string[];
-  action: 'markDone' | 'markUndone' | 'changeOwner' | 'changeType' | 'shiftDueDate' | 'delete';
+  action:
+    | 'markDone'
+    | 'markUndone'
+    | 'changeOwner'
+    | 'changeType'
+    | 'shiftDueDate'
+    | 'delete';
   ownerId?: string;
   type?: ActivityType;
   dueDateShiftDays?: number;
@@ -149,7 +156,10 @@ type TxClient = any;
 async function recomputeActivityDates(
   tx: TxClient,
   where: Prisma.ActivityWhereInput,
-  updateFn: (data: { lastActivityDate: Date | null; nextActivityDate: Date | null }) => Promise<unknown>
+  updateFn: (data: {
+    lastActivityDate: Date | null;
+    nextActivityDate: Date | null;
+  }) => Promise<unknown>
 ) {
   const [lastResult, nextResult] = await Promise.all([
     tx.activity.findFirst({
@@ -164,8 +174,7 @@ async function recomputeActivityDates(
     })
   ]);
 
-  const lastActivityDate =
-    lastResult?.completedAt ?? lastResult?.dueAt ?? null;
+  const lastActivityDate = lastResult?.completedAt ?? lastResult?.dueAt ?? null;
   const nextActivityDate = nextResult?.dueAt ?? null;
 
   await updateFn({ lastActivityDate, nextActivityDate });
@@ -176,7 +185,10 @@ async function recomputeDeal(tx: TxClient, tenantId: string, dealId: string) {
     tx,
     { tenantId, dealId },
     ({ lastActivityDate, nextActivityDate }) =>
-      tx.deal.update({ where: { id: dealId }, data: { lastActivityDate, nextActivityDate } })
+      tx.deal.update({
+        where: { id: dealId },
+        data: { lastActivityDate, nextActivityDate }
+      })
   );
 }
 
@@ -185,16 +197,26 @@ async function recomputeLead(tx: TxClient, tenantId: string, leadId: string) {
     tx,
     { tenantId, leadId },
     ({ lastActivityDate, nextActivityDate }) =>
-      tx.lead.update({ where: { id: leadId }, data: { lastActivityDate, nextActivityDate } })
+      tx.lead.update({
+        where: { id: leadId },
+        data: { lastActivityDate, nextActivityDate }
+      })
   );
 }
 
-async function recomputePerson(tx: TxClient, tenantId: string, personId: string) {
+async function recomputePerson(
+  tx: TxClient,
+  tenantId: string,
+  personId: string
+) {
   await recomputeActivityDates(
     tx,
     { tenantId, personId },
     ({ lastActivityDate, nextActivityDate }) =>
-      tx.person.update({ where: { id: personId }, data: { lastActivityDate, nextActivityDate } })
+      tx.person.update({
+        where: { id: personId },
+        data: { lastActivityDate, nextActivityDate }
+      })
   );
 }
 
@@ -203,7 +225,10 @@ async function recomputeOrg(tx: TxClient, tenantId: string, orgId: string) {
     tx,
     { tenantId, orgId },
     ({ lastActivityDate, nextActivityDate }) =>
-      tx.organization.update({ where: { id: orgId }, data: { lastActivityDate, nextActivityDate } })
+      tx.organization.update({
+        where: { id: orgId },
+        data: { lastActivityDate, nextActivityDate }
+      })
   );
 }
 
@@ -233,7 +258,11 @@ export class ActivityService extends BaseService {
     } = filters;
 
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
     const todayEnd = new Date(todayStart.getTime() + 86400000 - 1);
     const weekEnd = new Date(todayStart.getTime() + 7 * 86400000);
 
@@ -290,10 +319,21 @@ export class ActivityService extends BaseService {
         take,
         orderBy,
         include: {
-          owner: { select: { id: true, firstName: true, lastName: true, email: true } },
-          deal: { select: { id: true, title: true, status: true, stage: { select: { name: true } } } },
+          owner: {
+            select: { id: true, firstName: true, lastName: true, email: true }
+          },
+          deal: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              stage: { select: { name: true } }
+            }
+          },
           lead: { select: { id: true, title: true, status: true } },
-          person: { select: { id: true, firstName: true, lastName: true, email: true } },
+          person: {
+            select: { id: true, firstName: true, lastName: true, email: true }
+          },
           organization: { select: { id: true, name: true } }
         }
       }),
@@ -310,10 +350,21 @@ export class ActivityService extends BaseService {
     const activity = await prisma.activity.findFirst({
       where: { id, deleted: false },
       include: {
-        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
-        deal: { select: { id: true, title: true, status: true, stage: { select: { name: true } } } },
+        owner: {
+          select: { id: true, firstName: true, lastName: true, email: true }
+        },
+        deal: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            stage: { select: { name: true } }
+          }
+        },
         lead: { select: { id: true, title: true, status: true } },
-        person: { select: { id: true, firstName: true, lastName: true, email: true } },
+        person: {
+          select: { id: true, firstName: true, lastName: true, email: true }
+        },
         organization: { select: { id: true, name: true } }
       }
     });
@@ -332,7 +383,9 @@ export class ActivityService extends BaseService {
     await this.validateLinks(input);
 
     // Auto-compute remindAt = dueAt − 1h unless explicitly provided
-    const remindAt = input.remindAt ?? (input.dueAt ? computeDefaultRemindAt(input.dueAt) : undefined);
+    const remindAt =
+      input.remindAt ??
+      (input.dueAt ? computeDefaultRemindAt(input.dueAt) : undefined);
 
     // Assignee: use provided ownerId (assign to another user) or fall back to creator
     const assigneeId = input.ownerId ?? userId;
@@ -344,10 +397,12 @@ export class ActivityService extends BaseService {
           ...inputWithoutOwnerId,
           remindAt,
           tenantId,
-          ownerId: assigneeId,
+          ownerId: assigneeId
         },
         include: {
-          owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+          owner: {
+            select: { id: true, firstName: true, lastName: true, email: true }
+          },
           deal: { select: { id: true, title: true } },
           lead: { select: { id: true, title: true } },
           person: { select: { id: true, firstName: true, lastName: true } },
@@ -355,12 +410,14 @@ export class ActivityService extends BaseService {
         }
       });
 
-      await recomputeAllFromRefs(tx, tenantId, [{
-        dealId: input.dealId,
-        leadId: input.leadId,
-        personId: input.personId,
-        orgId: input.orgId
-      }]);
+      await recomputeAllFromRefs(tx, tenantId, [
+        {
+          dealId: input.dealId,
+          leadId: input.leadId,
+          personId: input.personId,
+          orgId: input.orgId
+        }
+      ]);
 
       // ACTIVITY_ASSIGNED: actor exclusion handles the self-assignment case —
       // if the user creates an activity for themselves the recipient list will
@@ -379,8 +436,8 @@ export class ActivityService extends BaseService {
           dueAt: created.dueAt?.toISOString() ?? null,
           entityName: buildEntityName(created.deal?.title, created.lead?.title),
           dealId: created.dealId,
-          leadId: created.leadId,
-        },
+          leadId: created.leadId
+        }
       });
 
       return { created, outboxId };
@@ -395,7 +452,10 @@ export class ActivityService extends BaseService {
       module: 'ACTIVITIES',
       entityId: activity.created.id,
       entityType: 'Activity',
-      details: { type: activity.created.type, subject: activity.created.subject }
+      details: {
+        type: activity.created.type,
+        subject: activity.created.subject
+      }
     });
 
     return activity.created;
@@ -407,12 +467,15 @@ export class ActivityService extends BaseService {
   async update(id: string, input: UpdateActivityInput) {
     const { tenantId, userId } = this;
 
-    const existing = await prisma.activity.findUnique({ where: { id, deleted: false } });
+    const existing = await prisma.activity.findUnique({
+      where: { id, deleted: false }
+    });
     this.ensureTenantAccess(existing);
 
     await this.validateLinks(input);
 
-    const dueAtChanged = 'dueAt' in input && String(input.dueAt) !== String(existing!.dueAt);
+    const dueAtChanged =
+      'dueAt' in input && String(input.dueAt) !== String(existing!.dueAt);
     const ownerChanged = !!input.ownerId && input.ownerId !== existing!.ownerId;
 
     // When dueAt is rescheduled: recalculate remindAt (unless caller overrides it explicitly)
@@ -422,7 +485,9 @@ export class ActivityService extends BaseService {
       if ('remindAt' in input) {
         remindAtUpdate = input.remindAt ?? null;
       } else {
-        remindAtUpdate = input.dueAt ? computeDefaultRemindAt(input.dueAt) : null;
+        remindAtUpdate = input.dueAt
+          ? computeDefaultRemindAt(input.dueAt)
+          : null;
       }
     } else if ('remindAt' in input) {
       remindAtUpdate = input.remindAt ?? null;
@@ -435,16 +500,22 @@ export class ActivityService extends BaseService {
       const updateData = toActivityUpdateInput({
         ...input,
         ...(remindAtUpdate !== undefined ? { remindAt: remindAtUpdate } : {}),
-        ...(dueAtChanged ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null } : {}),
-        ...(input.done === true && !existing!.done ? { completedAt: new Date() } : {}),
-        ...(input.done === false ? { completedAt: null } : {}),
+        ...(dueAtChanged
+          ? { dueSoonNotifiedAt: null, overdueNotifiedAt: null }
+          : {}),
+        ...(input.done === true && !existing!.done
+          ? { completedAt: new Date() }
+          : {}),
+        ...(input.done === false ? { completedAt: null } : {})
       });
 
       const updated = await tx.activity.update({
         where: { id },
         data: updateData,
         include: {
-          owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+          owner: {
+            select: { id: true, firstName: true, lastName: true, email: true }
+          },
           deal: { select: { id: true, title: true } },
           lead: { select: { id: true, title: true } },
           person: { select: { id: true, firstName: true, lastName: true } },
@@ -454,56 +525,73 @@ export class ActivityService extends BaseService {
 
       // Recompute all entities touched (old + new links)
       await recomputeAllFromRefs(tx, tenantId, [
-        { dealId: existing!.dealId, leadId: existing!.leadId, personId: existing!.personId, orgId: existing!.orgId },
-        { dealId: updated.dealId, leadId: updated.leadId, personId: updated.personId, orgId: updated.orgId }
+        {
+          dealId: existing!.dealId,
+          leadId: existing!.leadId,
+          personId: existing!.personId,
+          orgId: existing!.orgId
+        },
+        {
+          dealId: updated.dealId,
+          leadId: updated.leadId,
+          personId: updated.personId,
+          orgId: updated.orgId
+        }
       ]);
 
       const outboxIds: string[] = [];
       const effectiveOwnerId = updated.ownerId;
-      const entityName = buildEntityName(updated.deal?.title, updated.lead?.title);
+      const entityName = buildEntityName(
+        updated.deal?.title,
+        updated.lead?.title
+      );
 
       // ACTIVITY_ASSIGNED: new assignee notified (actor exclusion handles self-assignment)
       if (ownerChanged) {
-        outboxIds.push(await publishOutboxEvent(tx, {
-          tenantId,
-          actorUserId: userId,
-          type: NotificationEventType.ACTIVITY_ASSIGNED,
-          entityKind: 'activity',
-          entityId: id,
-          payload: {
-            assigneeId: input.ownerId,
-            ownerId: input.ownerId,
-            activitySubject: updated.subject,
-            activityType: updated.type,
-            dueAt: updated.dueAt?.toISOString() ?? null,
-            entityName,
-            dealId: updated.dealId,
-            leadId: updated.leadId,
-          },
-          sourceEventId: `crm.activity.assigned:${id}:reassign:${Date.now()}`,
-        }));
+        outboxIds.push(
+          await publishOutboxEvent(tx, {
+            tenantId,
+            actorUserId: userId,
+            type: NotificationEventType.ACTIVITY_ASSIGNED,
+            entityKind: 'activity',
+            entityId: id,
+            payload: {
+              assigneeId: input.ownerId,
+              ownerId: input.ownerId,
+              activitySubject: updated.subject,
+              activityType: updated.type,
+              dueAt: updated.dueAt?.toISOString() ?? null,
+              entityName,
+              dealId: updated.dealId,
+              leadId: updated.leadId
+            },
+            sourceEventId: `crm.activity.assigned:${id}:reassign:${Date.now()}`
+          })
+        );
       }
 
       // ACTIVITY_RESCHEDULED: notify the assignee when SOMEONE ELSE changes their dueAt
       if (dueAtChanged && userId !== effectiveOwnerId) {
-        outboxIds.push(await publishOutboxEvent(tx, {
-          tenantId,
-          actorUserId: userId,
-          type: NotificationEventType.ACTIVITY_RESCHEDULED,
-          entityKind: 'activity',
-          entityId: id,
-          payload: {
-            assigneeId: effectiveOwnerId,
-            ownerId: effectiveOwnerId,
-            activitySubject: updated.subject,
-            activityType: updated.type,
-            dueAt: updated.dueAt?.toISOString() ?? null,
-            entityName,
-            dealId: updated.dealId,
-            leadId: updated.leadId,
-          },
-          sourceEventId: `crm.activity.rescheduled:${id}:${Date.now()}`,
-        }));
+        outboxIds.push(
+          await publishOutboxEvent(tx, {
+            tenantId,
+            actorUserId: userId,
+            type: NotificationEventType.ACTIVITY_RESCHEDULED,
+            entityKind: 'activity',
+            entityId: id,
+            payload: {
+              assigneeId: effectiveOwnerId,
+              ownerId: effectiveOwnerId,
+              activitySubject: updated.subject,
+              activityType: updated.type,
+              dueAt: updated.dueAt?.toISOString() ?? null,
+              entityName,
+              dealId: updated.dealId,
+              leadId: updated.leadId
+            },
+            sourceEventId: `crm.activity.rescheduled:${id}:${Date.now()}`
+          })
+        );
       }
 
       return { updated, outboxIds };
@@ -530,7 +618,9 @@ export class ActivityService extends BaseService {
   async markAsDone(id: string) {
     const { tenantId, userId } = this;
 
-    const existing = await prisma.activity.findUnique({ where: { id, deleted: false } });
+    const existing = await prisma.activity.findUnique({
+      where: { id, deleted: false }
+    });
     this.ensureTenantAccess(existing);
 
     const activity = await prisma.$transaction(async (tx) => {
@@ -539,12 +629,14 @@ export class ActivityService extends BaseService {
         data: { done: true, completedAt: new Date() }
       });
 
-      await recomputeAllFromRefs(tx, tenantId, [{
-        dealId: existing!.dealId,
-        leadId: existing!.leadId,
-        personId: existing!.personId,
-        orgId: existing!.orgId
-      }]);
+      await recomputeAllFromRefs(tx, tenantId, [
+        {
+          dealId: existing!.dealId,
+          leadId: existing!.leadId,
+          personId: existing!.personId,
+          orgId: existing!.orgId
+        }
+      ]);
 
       return updated;
     });
@@ -568,7 +660,9 @@ export class ActivityService extends BaseService {
   async delete(id: string) {
     const { tenantId, userId } = this;
 
-    const existing = await prisma.activity.findFirst({ where: { id, deleted: false } });
+    const existing = await prisma.activity.findFirst({
+      where: { id, deleted: false }
+    });
     this.ensureTenantAccess(existing);
 
     await prisma.$transaction(async (tx) => {
@@ -577,12 +671,14 @@ export class ActivityService extends BaseService {
         data: { deleted: true, deletedAt: new Date() }
       });
 
-      await recomputeAllFromRefs(tx, tenantId, [{
-        dealId: existing!.dealId,
-        leadId: existing!.leadId,
-        personId: existing!.personId,
-        orgId: existing!.orgId
-      }]);
+      await recomputeAllFromRefs(tx, tenantId, [
+        {
+          dealId: existing!.dealId,
+          leadId: existing!.leadId,
+          personId: existing!.personId,
+          orgId: existing!.orgId
+        }
+      ]);
     });
 
     await AuditService.log({
@@ -657,7 +753,12 @@ export class ActivityService extends BaseService {
       await recomputeAllFromRefs(
         tx,
         tenantId,
-        existing.map(a => ({ dealId: a.dealId, leadId: a.leadId, personId: a.personId, orgId: a.orgId }))
+        existing.map((a) => ({
+          dealId: a.dealId,
+          leadId: a.leadId,
+          personId: a.personId,
+          orgId: a.orgId
+        }))
       );
     });
 
@@ -675,21 +776,34 @@ export class ActivityService extends BaseService {
   }
 
   /** Validate linked entities exist and belong to this tenant */
-  private async validateLinks(input: { dealId?: string | null; leadId?: string | null; personId?: string | null; orgId?: string | null }) {
+  private async validateLinks(input: {
+    dealId?: string | null;
+    leadId?: string | null;
+    personId?: string | null;
+    orgId?: string | null;
+  }) {
     if (input.dealId) {
-      const deal = await prisma.deal.findUnique({ where: { id: input.dealId, deleted: false } });
+      const deal = await prisma.deal.findUnique({
+        where: { id: input.dealId, deleted: false }
+      });
       this.ensureTenantAccess(deal);
     }
     if (input.leadId) {
-      const lead = await prisma.lead.findUnique({ where: { id: input.leadId, deleted: false } });
+      const lead = await prisma.lead.findUnique({
+        where: { id: input.leadId, deleted: false }
+      });
       this.ensureTenantAccess(lead);
     }
     if (input.personId) {
-      const person = await prisma.person.findUnique({ where: { id: input.personId, deleted: false } });
+      const person = await prisma.person.findUnique({
+        where: { id: input.personId, deleted: false }
+      });
       this.ensureTenantAccess(person);
     }
     if (input.orgId) {
-      const org = await prisma.organization.findUnique({ where: { id: input.orgId, deleted: false } });
+      const org = await prisma.organization.findUnique({
+        where: { id: input.orgId, deleted: false }
+      });
       this.ensureTenantAccess(org);
     }
   }
@@ -698,7 +812,10 @@ export class ActivityService extends BaseService {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 /** Build a human-readable entity context suffix for notification bodies */
-function buildEntityName(dealTitle?: string | null, leadTitle?: string | null): string {
+function buildEntityName(
+  dealTitle?: string | null,
+  leadTitle?: string | null
+): string {
   if (dealTitle) return ` on "${dealTitle}"`;
   if (leadTitle) return ` on "${leadTitle}"`;
   return '';
@@ -710,9 +827,12 @@ function buildOrderBy(
 ): Prisma.ActivityOrderByWithRelationInput[] {
   const dir = sortDesc ? 'desc' : 'asc';
   switch (sortBy) {
-    case 'createdAt': return [{ createdAt: dir }];
-    case 'subject':   return [{ subject: dir }];
-    case 'type':      return [{ type: dir }];
+    case 'createdAt':
+      return [{ createdAt: dir }];
+    case 'subject':
+      return [{ subject: dir }];
+    case 'type':
+      return [{ type: dir }];
     case 'dueAt':
     default:
       return [
@@ -739,16 +859,16 @@ async function recomputeAllFromRefs(
   tenantId: string,
   refs: EntityRefs[]
 ) {
-  const dealIds   = unique(refs.map(r => r.dealId));
-  const leadIds   = unique(refs.map(r => r.leadId));
-  const personIds = unique(refs.map(r => r.personId));
-  const orgIds    = unique(refs.map(r => r.orgId));
+  const dealIds = unique(refs.map((r) => r.dealId));
+  const leadIds = unique(refs.map((r) => r.leadId));
+  const personIds = unique(refs.map((r) => r.personId));
+  const orgIds = unique(refs.map((r) => r.orgId));
 
   await Promise.all([
-    ...dealIds.map(id => recomputeDeal(tx, tenantId, id)),
-    ...leadIds.map(id => recomputeLead(tx, tenantId, id)),
-    ...personIds.map(id => recomputePerson(tx, tenantId, id)),
-    ...orgIds.map(id => recomputeOrg(tx, tenantId, id))
+    ...dealIds.map((id) => recomputeDeal(tx, tenantId, id)),
+    ...leadIds.map((id) => recomputeLead(tx, tenantId, id)),
+    ...personIds.map((id) => recomputePerson(tx, tenantId, id)),
+    ...orgIds.map((id) => recomputeOrg(tx, tenantId, id))
   ]);
 }
 

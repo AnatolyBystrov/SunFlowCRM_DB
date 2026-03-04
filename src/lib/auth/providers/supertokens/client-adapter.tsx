@@ -48,16 +48,17 @@ function SuperTokensSessionGuard({
 }) {
   const session = useSessionContext();
   const router = useRouter();
+  const doesExist = !session.loading && session.doesSessionExist;
 
   useEffect(() => {
-    if (!session.loading && !session.doesSessionExist) {
+    if (!session.loading && !doesExist) {
       const redirectUrl = new URL(redirect, window.location.origin);
       redirectUrl.searchParams.set('redirectToPath', window.location.pathname);
       router.push(redirectUrl.toString());
     }
-  }, [session.loading, session.doesSessionExist, router, redirect]);
+  }, [session.loading, doesExist, router, redirect]);
 
-  if (session.loading || !session.doesSessionExist) {
+  if (session.loading || !doesExist) {
     return null;
   }
 
@@ -70,6 +71,10 @@ function SuperTokensSessionGuard({
 function useSupertokensSession() {
   const session = useSessionContext();
 
+  if (session.loading) {
+    return { user: null, loading: true, authenticated: false };
+  }
+
   return {
     user: session.doesSessionExist
       ? {
@@ -80,7 +85,7 @@ function useSupertokensSession() {
             session.accessTokenPayload?.email?.split('@')[0]
         }
       : null,
-    loading: session.loading,
+    loading: false,
     authenticated: session.doesSessionExist
   };
 }
