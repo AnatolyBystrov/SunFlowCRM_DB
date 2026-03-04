@@ -161,7 +161,7 @@ export class SuperTokensServerAdapter implements AuthServerAdapter {
         );
       }
 
-      return res;
+      return res as unknown as NextResponse;
     };
   }
 

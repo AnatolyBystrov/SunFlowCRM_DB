@@ -320,7 +320,7 @@ export class OrganizationService extends BaseService {
   async attachPersonsByDomain(id: string) {
     const organization = await prisma.organization.findUnique({
       where: { id, deleted: false },
-      select: { id: true, domain: true, name: true }
+      select: { id: true, domain: true, name: true, tenantId: true }
     });
 
     this.ensureTenantAccess(organization);

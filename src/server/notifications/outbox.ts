@@ -4,10 +4,14 @@ import { NotificationEventType, type OutboxEventInput } from './types';
 
 /**
  * Minimal structural type for the Prisma transaction client.
- * Using a duck-type interface allows this function to accept both
- * the real transaction client and any compatible test double.
+ * Using `any` here because the Prisma 7 extended client (with PrismaPg adapter)
+ * produces a different generic shape than the base PrismaClient, making
+ * `Pick<PrismaClient, 'outboxEvent'>` incompatible at the type level even
+ * though the runtime API is identical. Prisma delegate types also lack index
+ * signatures, so Record-based unions fail too.
  */
-type TxClient = Pick<PrismaClient, 'outboxEvent'>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TxClient = any;
 
 /**
  * Create a deterministic sourceEventId from action context.
@@ -32,7 +36,10 @@ function makeSourceEventId(
  *   await publishOutboxEvent(tx, { ... });
  * });
  */
-export async function publishOutboxEvent(tx: TxClient, input: OutboxEventInput): Promise<string> {
+export async function publishOutboxEvent(
+  tx: TxClient,
+  input: OutboxEventInput
+): Promise<string> {
   const sourceEventId =
     input.sourceEventId ??
     makeSourceEventId(input.type, input.entityId, Date.now().toString());
@@ -46,9 +53,9 @@ export async function publishOutboxEvent(tx: TxClient, input: OutboxEventInput):
         actorUserId: input.actorUserId,
         entityKind: input.entityKind,
         entityId: input.entityId,
-        payload: input.payload,
+        payload: input.payload as Prisma.InputJsonValue
       },
-      select: { id: true },
+      select: { id: true }
     });
     return event.id;
   } catch (err) {
@@ -56,10 +63,15 @@ export async function publishOutboxEvent(tx: TxClient, input: OutboxEventInput):
     // This is idempotency: silently return the existing event id so callers can
     // still enqueue a BullMQ job (the worker will find the event already PROCESSED
     // and skip it gracefully).
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
       const existing = await tx.outboxEvent.findUnique({
-        where: { tenantId_sourceEventId: { tenantId: input.tenantId, sourceEventId } },
-        select: { id: true },
+        where: {
+          tenantId_sourceEventId: { tenantId: input.tenantId, sourceEventId }
+        },
+        select: { id: true }
       });
       if (existing) return existing.id;
     }

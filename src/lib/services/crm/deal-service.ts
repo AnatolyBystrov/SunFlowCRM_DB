@@ -347,9 +347,10 @@ export class DealService extends BaseService {
       data: {
         ...input,
         // Update stageChangeTime if stage is changing
-        ...(input.stageId && input.stageId !== existing!.stageId && {
-          stageChangeTime: new Date()
-        }),
+        ...(input.stageId &&
+          input.stageId !== existing!.stageId && {
+            stageChangeTime: new Date()
+          }),
         ...(input.customData && {
           customData: {
             ...((existing?.customData as object) || {}),
@@ -384,7 +385,8 @@ export class DealService extends BaseService {
    */
   async moveToStage(id: string, stageId: string) {
     const existing = await prisma.deal.findUnique({
-      where: { id, deleted: false }
+      where: { id, deleted: false },
+      include: { stage: { select: { id: true, name: true } } }
     });
     this.ensureTenantAccess(existing); // Throws if null or wrong tenant
 
@@ -421,64 +423,73 @@ export class DealService extends BaseService {
     }
 
     // timeout raised: this tx has up to 3 DB operations (deal update + 2 outbox inserts)
-    const { deal, outboxIds } = await prisma.$transaction(async (tx) => {
-      const updated = await tx.deal.update({
-        where: { id },
-        data: updateData,
-        include: {
-          pipeline: true,
-          stage: true,
-          owner: true,
-          person: true,
-          organization: true
+    const { deal, outboxIds } = await prisma.$transaction(
+      async (tx) => {
+        const updated = await tx.deal.update({
+          where: { id },
+          data: updateData,
+          include: {
+            pipeline: true,
+            stage: true,
+            owner: true,
+            person: true,
+            organization: true
+          }
+        });
+
+        const ids: string[] = [];
+
+        ids.push(
+          await publishOutboxEvent(tx, {
+            tenantId: this.tenantId,
+            actorUserId: this.userId,
+            type: NotificationEventType.DEAL_STAGE_CHANGED,
+            entityKind: 'deal',
+            entityId: id,
+            payload: {
+              dealTitle: existing!.title,
+              stageName: stage!.name,
+              fromStageId: existing!.stageId,
+              toStageId: stageId,
+              ownerId: existing!.ownerId
+            }
+          })
+        );
+
+        if (updateData.status === DealStatus.WON) {
+          ids.push(
+            await publishOutboxEvent(tx, {
+              tenantId: this.tenantId,
+              actorUserId: this.userId,
+              type: NotificationEventType.DEAL_WON,
+              entityKind: 'deal',
+              entityId: id,
+              payload: {
+                dealTitle: existing!.title,
+                ownerId: existing!.ownerId
+              }
+            })
+          );
+        } else if (updateData.status === DealStatus.LOST) {
+          ids.push(
+            await publishOutboxEvent(tx, {
+              tenantId: this.tenantId,
+              actorUserId: this.userId,
+              type: NotificationEventType.DEAL_LOST,
+              entityKind: 'deal',
+              entityId: id,
+              payload: {
+                dealTitle: existing!.title,
+                ownerId: existing!.ownerId
+              }
+            })
+          );
         }
-      });
 
-      const ids: string[] = [];
-
-      ids.push(await publishOutboxEvent(tx, {
-        tenantId: this.tenantId,
-        actorUserId: this.userId,
-        type: NotificationEventType.DEAL_STAGE_CHANGED,
-        entityKind: 'deal',
-        entityId: id,
-        payload: {
-          dealTitle: existing!.title,
-          stageName: stage!.name,
-          fromStageId: existing!.stageId,
-          toStageId: stageId,
-          ownerId: existing!.ownerId,
-        },
-      }));
-
-      if (updateData.status === DealStatus.WON) {
-        ids.push(await publishOutboxEvent(tx, {
-          tenantId: this.tenantId,
-          actorUserId: this.userId,
-          type: NotificationEventType.DEAL_WON,
-          entityKind: 'deal',
-          entityId: id,
-          payload: {
-            dealTitle: existing!.title,
-            ownerId: existing!.ownerId,
-          },
-        }));
-      } else if (updateData.status === DealStatus.LOST) {
-        ids.push(await publishOutboxEvent(tx, {
-          tenantId: this.tenantId,
-          actorUserId: this.userId,
-          type: NotificationEventType.DEAL_LOST,
-          entityKind: 'deal',
-          entityId: id,
-          payload: {
-            dealTitle: existing!.title,
-            ownerId: existing!.ownerId,
-          },
-        }));
-      }
-
-      return { deal: updated, outboxIds: ids };
-    }, { timeout: 10000, maxWait: 5000 });
+        return { deal: updated, outboxIds: ids };
+      },
+      { timeout: 10000, maxWait: 5000 }
+    );
 
     outboxIds.forEach((oid) => enqueueOutboxJob(oid));
 
@@ -519,7 +530,8 @@ export class DealService extends BaseService {
         data: {
           status: DealStatus.WON,
           wonAt: now,
-          ...((!existing!.firstWonTime && !existing!.wonAt) && { firstWonTime: now })
+          ...(!existing!.firstWonTime &&
+            !existing!.wonAt && { firstWonTime: now })
         }
       });
 
@@ -533,8 +545,8 @@ export class DealService extends BaseService {
           dealTitle: existing!.title,
           ownerId: existing!.ownerId,
           value: existing!.value.toString(),
-          currency: existing!.currency,
-        },
+          currency: existing!.currency
+        }
       });
 
       return { deal: updated, outboxId: oid };
@@ -588,8 +600,8 @@ export class DealService extends BaseService {
           dealTitle: existing!.title,
           ownerId: existing!.ownerId,
           value: existing!.value.toString(),
-          currency: existing!.currency,
-        },
+          currency: existing!.currency
+        }
       });
 
       return { deal: updated, outboxId: oid };
