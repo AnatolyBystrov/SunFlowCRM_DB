@@ -43,8 +43,10 @@ export const DealCard = React.memo(function DealCard({
     : deal.organization?.name || null;
 
   const probability =
-    deal.probability ?? (deal.stage as { probability?: number })?.probability;
-  const pct = probability != null ? Number(probability) : null;
+    deal.probability != null
+      ? Number(deal.probability)
+      : (deal.stage as { probability?: number })?.probability;
+  const pct = probability ?? null;
 
   const notesCount = deal._count?.notes ?? 0;
   const activitiesCount = deal._count?.activities ?? 0;
