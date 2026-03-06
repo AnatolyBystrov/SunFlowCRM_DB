@@ -1,0 +1,22 @@
+FROM stackauth/server:latest
+
+USER root
+RUN mkdir -p /tmp/fix && cd /tmp/fix \
+  && npm init -y --silent 2>/dev/null \
+  && npm install --no-audit --no-fund --legacy-peer-deps \
+     @prisma/client@7.1.0 \
+     @stackframe/stack-shared@2.8.71 \
+     @react-email/components \
+     @sentry/node \
+     arktype \
+     jose@6 \
+     next@16.1.5 \
+     node-cron \
+     react@19.2.3 \
+     react-dom@19.2.3 \
+     yup \
+  && rm -rf /app/apps/backend/node_modules \
+  && cp -R /tmp/fix/node_modules /app/apps/backend/node_modules \
+  && ln -sf /app/apps/backend/node_modules/next/navigation.js /app/apps/backend/node_modules/next/navigation \
+  && ln -sf /app/apps/backend/node_modules/next/headers.js /app/apps/backend/node_modules/next/headers \
+  && rm -rf /tmp/fix

@@ -34,6 +34,6 @@ echo ""
 echo "📋 Шаг 4: Запуск dev сервера..."
 echo ""
 
-cd "/Users/usov/Documents/DEV/SunApp AG"
+cd "$(dirname "$0")"
 ulimit -n 10240
 npm run dev

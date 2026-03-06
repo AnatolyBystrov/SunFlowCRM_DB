@@ -9,7 +9,11 @@ import 'dotenv/config';
 
 const STACK_API_URL = process.env.NEXT_PUBLIC_STACK_API_URL || 'http://localhost:8102';
 const PROJECT_ID = process.env.NEXT_PUBLIC_STACK_PROJECT_ID!;
-const SECRET_KEY = process.env.STACK_SECRET_SERVER_KEY!;
+const SECRET_KEY =
+  process.env.STACK_SECRET_SERVER_KEY ?? process.env.STACK_SECRET_KEY!;
+const PUBLISHABLE_KEY =
+  process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY ??
+  process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_KEY!;
 
 async function main() {
   console.log('Fetching users from Stack Auth...');
@@ -19,7 +23,7 @@ async function main() {
       'x-stack-access-type': 'server',
       'x-stack-project-id': PROJECT_ID,
       'x-stack-secret-server-key': SECRET_KEY,
-      'x-stack-publishable-client-key': process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!
+      'x-stack-publishable-client-key': PUBLISHABLE_KEY
     }
   });
 
@@ -47,7 +51,7 @@ async function main() {
         'x-stack-access-type': 'server',
         'x-stack-project-id': PROJECT_ID,
         'x-stack-secret-server-key': SECRET_KEY,
-        'x-stack-publishable-client-key': process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY!
+        'x-stack-publishable-client-key': PUBLISHABLE_KEY
       },
       body: JSON.stringify({ server_metadata: {} })
     });

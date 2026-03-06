@@ -9,7 +9,7 @@ echo "  🚀 Запуск Stack Auth локально"
 echo "================================================"
 echo ""
 
-cd "/Users/usov/Documents/DEV/SunApp AG"
+cd "$(dirname "$0")"
 
 echo "📋 Шаг 1: Проверка Docker..."
 if ! docker ps > /dev/null 2>&1; then

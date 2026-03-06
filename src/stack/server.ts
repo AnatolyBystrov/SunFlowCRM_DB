@@ -4,7 +4,10 @@ import { StackServerApp } from '@stackframe/stack';
  * Stack Auth server app instance (lazy singleton).
  * Only created when actually requested AND when Stack Auth env vars are present.
  *
- * Requires STACK_SECRET_SERVER_KEY in environment variables.
+ * Requires a Stack secret key in environment variables.
+ * Supports both legacy and new env var names:
+ * - STACK_SECRET_SERVER_KEY (legacy)
+ * - STACK_SECRET_KEY (new)
  */
 let _stackServerApp: StackServerApp | null = null;
 
@@ -17,10 +20,22 @@ const STACK_AUTH_URLS = {
 } as const;
 
 /**
+ * Resolve Stack API base URL for server-side SDK calls.
+ *
+ * In containerized deployments, the app container should call Stack API over
+ * the internal Docker network (e.g. http://stack-server:8102), while the
+ * browser still uses the public URL. Use STACK_INTERNAL_API_URL to override.
+ */
+function getStackServerBaseUrl(): string | undefined {
+  return process.env.STACK_INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_STACK_API_URL;
+}
+
+/**
  * Validate Stack Auth credentials are properly configured.
  */
 function validateStackAuthCredentials(): boolean {
-  const secretKey = process.env.STACK_SECRET_SERVER_KEY;
+  const secretKey =
+    process.env.STACK_SECRET_SERVER_KEY ?? process.env.STACK_SECRET_KEY;
 
   // Check if credentials are missing or still placeholder values
   if (
@@ -76,6 +91,7 @@ export function getStackServerApp(): StackServerApp {
 
     _stackServerApp = new StackServerApp({
       tokenStore: 'nextjs-cookie',
+      baseUrl: getStackServerBaseUrl(),
       urls: STACK_AUTH_URLS
     });
   }
@@ -94,6 +110,7 @@ export function createRequestScopedStackApp(request: Request): StackServerApp {
 
   return new StackServerApp({
     tokenStore: request,
+    baseUrl: getStackServerBaseUrl(),
     urls: STACK_AUTH_URLS
   });
 }

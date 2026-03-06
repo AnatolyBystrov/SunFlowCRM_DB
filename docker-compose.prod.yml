@@ -49,7 +49,7 @@ services:
 
   # ─── Stack Auth: ClickHouse (analytics) ─────────────────────────────────────
   clickhouse:
-    image: clickhouse/clickhouse-server:24-alpine
+    image: clickhouse/clickhouse-server:latest
     container_name: sunflow-clickhouse
     restart: unless-stopped
     environment:
@@ -59,6 +59,7 @@ services:
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./docker/clickhouse/users.d/allow-experimental-json.xml:/etc/clickhouse-server/users.d/allow-experimental-json.xml:ro
     healthcheck:
       test: ["CMD", "clickhouse-client", "--password=${CLICKHOUSE_PASSWORD}", "--query", "SELECT 1"]
       interval: 15s
@@ -67,7 +68,10 @@ services:
 
   # ─── Stack Auth Server ───────────────────────────────────────────────────────
   stack-server:
-    image: stackauth/server:latest
+    image: sunflow-stack-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.stack-auth
     container_name: sunflow-stack-server
     restart: unless-stopped
     depends_on:
@@ -76,54 +80,68 @@ services:
       clickhouse:
         condition: service_healthy
     environment:
-      # Database
+      # Database (official var names from stack-auth .env.example)
       STACK_DATABASE_CONNECTION_STRING: "postgresql://stackauth:${STACK_DB_PASSWORD}@stack-postgres:5432/stackauth"
 
       # Server secrets & URLs
       STACK_SERVER_SECRET: "${STACK_SERVER_SECRET:?STACK_SERVER_SECRET is required}"
-      STACK_BASE_URL: "${NEXT_PUBLIC_STACK_URL:?NEXT_PUBLIC_STACK_URL is required}"
-      NEXT_PUBLIC_STACK_URL: "${NEXT_PUBLIC_STACK_URL}"
       NEXT_PUBLIC_STACK_API_URL: "${NEXT_PUBLIC_STACK_API_URL:?NEXT_PUBLIC_STACK_API_URL is required}"
+      NEXT_PUBLIC_STACK_DASHBOARD_URL: "${NEXT_PUBLIC_STACK_URL:?NEXT_PUBLIC_STACK_URL is required}"
 
-      # Ports
-      PORT: 8101
-      NEXT_PUBLIC_STACK_DASHBOARD_PORT: 8101
-      NEXT_PUBLIC_STACK_BACKEND_PORT: 8102
+      # Seed script (creates the internal Dashboard project on first boot)
+      STACK_RUN_MIGRATIONS: "true"
+      STACK_RUN_SEED_SCRIPT: "true"
+      STACK_SEED_INTERNAL_PROJECT_ALLOW_LOCALHOST: "true"
+      STACK_SEED_INTERNAL_PROJECT_SIGN_UP_ENABLED: "true"
 
-      NODE_ENV: production
+      # Email (SMTP — uses Inbucket locally, real SMTP in production)
+      STACK_EMAIL_HOST: "${STACK_EMAIL_HOST:-inbucket}"
+      STACK_EMAIL_PORT: "${STACK_EMAIL_PORT:-2500}"
+      STACK_EMAIL_USERNAME: "${STACK_EMAIL_USERNAME:-}"
+      STACK_EMAIL_PASSWORD: "${STACK_EMAIL_PASSWORD:-}"
+      STACK_EMAIL_SECURE: "${STACK_EMAIL_SECURE:-false}"
+      STACK_EMAIL_SENDER: "${STACK_EMAIL_SENDER:-noreply@sunflow.local}"
 
-      # Production email (SMTP)
-      STACK_EMAIL_HOST: "${STACK_EMAIL_HOST:?STACK_EMAIL_HOST is required}"
-      STACK_EMAIL_PORT: "${STACK_EMAIL_PORT:-587}"
-      STACK_EMAIL_USER: "${STACK_EMAIL_USER:?STACK_EMAIL_USER is required}"
-      STACK_EMAIL_PASSWORD: "${STACK_EMAIL_PASSWORD:?STACK_EMAIL_PASSWORD is required}"
-      STACK_EMAIL_SENDER: "${STACK_EMAIL_SENDER:-noreply@yourdomain.com}"
-      STACK_EMAIL_SECURE: "${STACK_EMAIL_SECURE:-true}"
-
-      # ClickHouse
+      # ClickHouse (analytics)
       STACK_CLICKHOUSE_URL: "http://clickhouse:8123"
       STACK_CLICKHOUSE_ADMIN_USER: default
       STACK_CLICKHOUSE_ADMIN_PASSWORD: "${CLICKHOUSE_PASSWORD}"
       STACK_CLICKHOUSE_EXTERNAL_USER: default
       STACK_CLICKHOUSE_EXTERNAL_PASSWORD: "${CLICKHOUSE_PASSWORD}"
-
-      # Run migrations on startup
-      STACK_RUN_MIGRATIONS: "true"
     ports:
       - "${STACK_DASHBOARD_PORT:-8101}:8101"
       - "${STACK_API_PORT:-8102}:8102"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8102/api/v1/health"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:8102/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 30s
+      start_period: 60s
+
+  # ─── Local SMTP sink (fallback when external SMTP is unavailable) ────────────
+  inbucket:
+    image: inbucket/inbucket:stable
+    container_name: sunflow-inbucket
+    restart: unless-stopped
+    ports:
+      - "8105:9000"
+      - "2500:2500"
 
   # ─── Migrations (runs once and exits) ────────────────────────────────────────
   migrate:
     image: sunflow-app:latest
     container_name: sunflow-migrate
     command: ["npx", "prisma", "migrate", "deploy"]
+    volumes:
+      - ./prisma.config.ts:/app/prisma.config.ts:ro
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sun_uw}"
     depends_on:
@@ -134,6 +152,19 @@ services:
   # ─── Application ─────────────────────────────────────────────────────────────
   app:
     image: sunflow-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_NAME: "${NEXT_PUBLIC_APP_NAME:-SunFlowCRM}"
+        NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL is required}"
+        NEXT_PUBLIC_API_DOMAIN: "${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL is required}"
+        NEXT_PUBLIC_AUTH_PROVIDER: "stack"
+        NEXT_PUBLIC_STACK_PROJECT_ID: "${NEXT_PUBLIC_STACK_PROJECT_ID:?NEXT_PUBLIC_STACK_PROJECT_ID is required}"
+        NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY: "${NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY:-${NEXT_PUBLIC_STACK_PUBLISHABLE_KEY:?NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY or NEXT_PUBLIC_STACK_PUBLISHABLE_KEY is required}}"
+        NEXT_PUBLIC_STACK_PUBLISHABLE_KEY: "${NEXT_PUBLIC_STACK_PUBLISHABLE_KEY:-}"
+        NEXT_PUBLIC_STACK_URL: "${NEXT_PUBLIC_STACK_URL}"
+        NEXT_PUBLIC_STACK_API_URL: "${NEXT_PUBLIC_STACK_API_URL}"
     container_name: sunflow-app
     restart: unless-stopped
     depends_on:
@@ -162,12 +193,14 @@ services:
 
       # Stack Auth keys (obtained from Stack Auth Dashboard after first boot)
       NEXT_PUBLIC_STACK_PROJECT_ID: "${NEXT_PUBLIC_STACK_PROJECT_ID:?NEXT_PUBLIC_STACK_PROJECT_ID is required}"
-      NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY: "${NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY:?NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY is required}"
-      STACK_SECRET_SERVER_KEY: "${STACK_SECRET_SERVER_KEY:?STACK_SECRET_SERVER_KEY is required}"
+      NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY: "${NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY:-${NEXT_PUBLIC_STACK_PUBLISHABLE_KEY:?NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY or NEXT_PUBLIC_STACK_PUBLISHABLE_KEY is required}}"
+      STACK_SECRET_SERVER_KEY: "${STACK_SECRET_SERVER_KEY:-${STACK_SECRET_KEY:?STACK_SECRET_SERVER_KEY or STACK_SECRET_KEY is required}}"
 
       # Stack Auth server URLs
       NEXT_PUBLIC_STACK_URL: "${NEXT_PUBLIC_STACK_URL}"
       NEXT_PUBLIC_STACK_API_URL: "${NEXT_PUBLIC_STACK_API_URL}"
+      # Server-only internal URL for Stack SDK calls from Node runtime
+      STACK_INTERNAL_API_URL: "http://stack-server:8102"
 
       # Database
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-sun_uw}"

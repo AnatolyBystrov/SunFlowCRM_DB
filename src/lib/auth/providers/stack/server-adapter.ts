@@ -226,11 +226,45 @@ export class StackAuthServerAdapter implements AuthServerAdapter {
 
       // Map common auth endpoints to Stack Auth handler routes
       if (pathname === '/api/auth/signin') {
-        return NextResponse.redirect(new URL('/handler/sign-in', request.url));
+        if (request.method === 'GET' || request.method === 'HEAD') {
+          // Return relative location header so browser keeps current origin
+          // and avoids redirects to container hostnames like 0.0.0.0.
+          return new NextResponse(null, {
+            status: 307,
+            headers: {
+              Location: '/auth/sign-in'
+            }
+          });
+        }
+
+        return NextResponse.json(
+          {
+            error: 'AUTH_PROVIDER_MISMATCH',
+            message:
+              'Stack Auth is enabled, but /api/auth/signin was called as an API endpoint. Use Stack Auth client methods or /auth/sign-in UI route.'
+          },
+          { status: 409 }
+        );
       }
 
       if (pathname === '/api/auth/signout') {
-        return NextResponse.redirect(new URL('/handler/sign-out', request.url));
+        if (request.method === 'GET' || request.method === 'HEAD') {
+          return new NextResponse(null, {
+            status: 307,
+            headers: {
+              Location: '/auth/sign-in'
+            }
+          });
+        }
+
+        return NextResponse.json(
+          {
+            error: 'AUTH_PROVIDER_MISMATCH',
+            message:
+              'Stack Auth is enabled, but /api/auth/signout was called as an API endpoint.'
+          },
+          { status: 409 }
+        );
       }
 
       // For other auth routes, let Stack Auth SDK handle via /handler/

@@ -6,7 +6,10 @@ import { StackClientApp } from '@stackframe/stack';
  * Stack Auth client app instance (lazy singleton).
  * Only created when actually requested AND when Stack Auth env vars are present.
  *
- * Requires NEXT_PUBLIC_STACK_PROJECT_ID and NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY.
+ * Requires NEXT_PUBLIC_STACK_PROJECT_ID and a publishable key.
+ * Supports both legacy and new env var names:
+ * - NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY (legacy)
+ * - NEXT_PUBLIC_STACK_PUBLISHABLE_KEY (new)
  */
 let _stackClientApp: StackClientApp<true> | null = null;
 
@@ -15,7 +18,9 @@ let _stackClientApp: StackClientApp<true> | null = null;
  */
 function validateStackAuthCredentials(): boolean {
   const projectId = process.env.NEXT_PUBLIC_STACK_PROJECT_ID;
-  const publishableKey = process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY;
+  const publishableKey =
+    process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY ??
+    process.env.NEXT_PUBLIC_STACK_PUBLISHABLE_KEY;
 
   // Check if credentials are missing or still placeholder values
   if (
@@ -48,7 +53,9 @@ export function getStackClientApp(): StackClientApp<true> {
 3. Скопируйте credentials в .env файл:
 
    NEXT_PUBLIC_STACK_PROJECT_ID="proj_..."
-   NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY="pck_..."
+   NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY="pck_..."  # legacy
+   # or
+   NEXT_PUBLIC_STACK_PUBLISHABLE_KEY="pck_..."         # new
    STACK_SECRET_SERVER_KEY="ssk_..."
 
 4. Перезапустите: npm run dev
