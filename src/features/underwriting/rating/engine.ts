@@ -1,6 +1,6 @@
 /**
  * engine.ts — Yacht Insurance Rating Engine
- * Facility: LM21M0136, Appendix 6 + Appendix 7
+ * Facility: SUN-MYC-001, Appendix 6 + Appendix 7
  *
  * Changelog (facility audit fixes):
  * - MIN_PREMIUM: 250 → 350 (Appendix 7)
@@ -112,7 +112,7 @@ function getPiPremium(
   const isCharter = useType === 'CHARTER' || useType === 'BAREBOAT';
   const table = isCharter ? PI_CHARTER : PI_PRIVATE;
 
-  // Enforce US P&I cap of $1M (per LM21M0136)
+  // Enforce US P&I cap of $1M (per SUN-MYC-001)
   const effectiveLimit =
     territory === 'US_CA_MX_CARIB'
       ? Math.min(liabilityLimit, 1_000_000)
@@ -633,7 +633,7 @@ export function calculateYachtPremium(input: RiskInput): RatingResult {
       netAdjustmentPct: round2(netAdj * 100),
       discounts,
       loadings,
-      rateTableSource: 'LM21M0136_Appendix6_v2021'
+      rateTableSource: 'SUN-MYC-001_Appendix6_v2021'
     },
     deductibles: {
       hull: hullDed,

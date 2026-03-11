@@ -1,6 +1,6 @@
 /**
  * seed-rates.ts
- * Loads all rating tables from Facility Agreement LM21M0136 Appendix 6
+ * Loads all rating tables from Facility Agreement SUN-MYC-001 Appendix 6
  * into the database.
  *
  * Run: npx tsx prisma/seed-rates.ts
@@ -82,7 +82,7 @@ const PI_PRIVATE_US = [
   { liabilityLimit: 1_000_000, maxLengthFt: 999, annualPremium: 475 }
 ];
 
-// ROW P&I is same table as US for private (per LM21M0136)
+// ROW P&I is same table as US for private (per SUN-MYC-001)
 const PI_PRIVATE_ROW = PI_PRIVATE_US;
 
 const PI_CHARTER_US = [
@@ -108,7 +108,7 @@ const PI_CHARTER_US = [
   { liabilityLimit: 1_000_000, maxLengthFt: 999, annualPremium: 660 }
 ];
 
-// ROW allows up to $3M P&I (vs $1M cap for US per LM21M0136)
+// ROW allows up to $3M P&I (vs $1M cap for US per SUN-MYC-001)
 const PI_PRIVATE_ROW_EXTENDED = [
   ...PI_PRIVATE_ROW,
   { liabilityLimit: 2_000_000, maxLengthFt: 35, annualPremium: 280 },
@@ -127,7 +127,7 @@ const PI_PRIVATE_ROW_EXTENDED = [
 ];
 
 // ============================================================
-// RATING FACTORS — Discounts & Loadings (LM21M0136 Appendix 6)
+// RATING FACTORS — Discounts & Loadings (SUN-MYC-001 Appendix 6)
 // ============================================================
 const RATING_FACTORS: {
   code: string;
@@ -530,7 +530,7 @@ const RATING_FACTORS: {
 // MAIN SEED FUNCTION
 // ============================================================
 async function main() {
-  console.log('🚢 Seeding LM21M0136 rate tables...\n');
+  console.log('🚢 Seeding SUN-MYC-001 rate tables...\n');
 
   // --- Hull Rate Bands US ---
   console.log('📊 Hull rates US/CA/MX/Caribbean...');
@@ -661,7 +661,7 @@ async function main() {
   console.log(`   P&I rate bands  : ${piCount}`);
   console.log(`   Rating factors  : ${factorCount}`);
   console.log(
-    '\n📋 Source: Facility Agreement LM21M0136, Appendix 6 (effective 2021-01-01)'
+    '\n📋 Source: Facility Agreement SUN-MYC-001, Appendix 6 (effective 2021-01-01)'
   );
 }
 

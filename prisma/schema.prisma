@@ -944,7 +944,7 @@ enum FieldType {
 // ============================================
 // UNDERWRITING MODULE — Marine Yacht
 // Branch: feature/underwriting-module
-// Facility: LM21M0136
+// Facility: SUN-MYC-001
 // ============================================
 
 model Submission {
@@ -1061,7 +1061,7 @@ model Quote {
   netAdjustmentPct Decimal @db.Decimal(6, 2)
   discountsApplied Json    @default("[]") // [{code, label, pct}]
   loadingsApplied  Json    @default("[]") // [{code, label, pct}]
-  rateTableSource  String  @default("LM21M0136_Appendix6_v2021")
+  rateTableSource  String  @default("SUN-MYC-001_Appendix6_v2021")
 
   // Deductibles
   hullDeductible    Decimal @db.Decimal(10, 2)
@@ -1094,7 +1094,7 @@ model Quote {
   @@map("quotes")
 }
 
-// Hull rate bands — loaded from LM21M0136 Appendix 6
+// Hull rate bands — loaded from SUN-MYC-001 Appendix 6
 model HullRateBand {
   id            String    @id @default(cuid())
   territory     Territory

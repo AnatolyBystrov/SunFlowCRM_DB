@@ -21,7 +21,9 @@ import {
   IconMessage,
   IconActivity,
   IconChartBar,
-  IconDownload
+  IconDownload,
+  IconSend,
+  IconCheck
 } from '@tabler/icons-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -246,6 +248,10 @@ export default function SubmissionDetailPage() {
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPolicy, setDownloadingPolicy] = useState(false);
+  const [issueOpen, setIssueOpen] = useState(false);
+  const [issueValidFrom, setIssueValidFrom] = useState('');
+  const [issueValidUntil, setIssueValidUntil] = useState('');
 
   const id = params?.id as string;
 
@@ -342,6 +348,92 @@ export default function SubmissionDetailPage() {
     }
   }
 
+  function openIssueForm() {
+    const from = new Date();
+    const until = new Date();
+    until.setDate(until.getDate() + 30);
+    setIssueValidFrom(from.toISOString().split('T')[0]);
+    setIssueValidUntil(until.toISOString().split('T')[0]);
+    setIssueOpen(true);
+  }
+
+  async function issueQuote() {
+    setActionLoading('QUOTED');
+    try {
+      const res = await fetch(`/api/underwriting/submissions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'QUOTED',
+          quoteValidFrom: issueValidFrom,
+          quoteValidUntil: issueValidUntil
+        })
+      });
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      setSub(json?.data?.submission ?? null);
+      setIssueOpen(false);
+      toast.success('Quote issued — ready to bind');
+    } catch {
+      toast.error('Failed to issue quote');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  function sendToBroker() {
+    if (!sub || !quote) return;
+    const email = sub.brokerEmail ?? '';
+    const validUntilStr = quote.validUntil
+      ? fmtDate(quote.validUntil)
+      : '30 days from issue';
+    const subject = `Insurance Quote — ${sub.reference} — ${sub.vesselName ?? 'Vessel'}`;
+    const body = [
+      `Dear ${sub.brokerName ?? 'Broker'},`,
+      '',
+      `Please find below the marine yacht insurance quotation for ${sub.vesselName ?? 'your vessel'}.`,
+      '',
+      `Quote Reference:  ${sub.reference}`,
+      `Total Premium:    ${fmt(Number(quote.totalPremium))} per annum`,
+      `Hull Value:       ${fmt(Number(sub.hullValue))}`,
+      `Liability Limit:  ${fmt(Number(sub.liabilityLimit))}`,
+      `Territory:        ${sub.territory}`,
+      `Valid Until:      ${validUntilStr}`,
+      '',
+      'This quotation is subject to full terms and conditions set out in the Quote Slip.',
+      'Please confirm acceptance in writing to bind coverage.',
+      '',
+      'Kind regards,',
+      'Sun Re Marine Underwriting'
+    ].join('\n');
+    window.open(
+      `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      '_blank'
+    );
+  }
+
+  async function downloadPolicy() {
+    setDownloadingPolicy(true);
+    try {
+      const res = await fetch(`/api/underwriting/submissions/${id}/policy`);
+      if (!res.ok) throw new Error('Failed to generate policy');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Policy_POL-${sub!.reference.replace('SUN-', '')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Policy certificate downloaded');
+    } catch {
+      toast.error('Failed to download policy');
+    } finally {
+      setDownloadingPolicy(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className='flex h-96 items-center justify-center'>
@@ -374,99 +466,178 @@ export default function SubmissionDetailPage() {
   const canRefer =
     ['SUBMITTED', 'REVIEW'].includes(sub.status) && sub.uwDecision !== 'REFER';
   const canDecline = !['BOUND', 'DECLINED', 'EXPIRED'].includes(sub.status);
+  const canIssueQuote = !!quote && ['SUBMITTED', 'REVIEW'].includes(sub.status);
   const canBind = sub.status === 'QUOTED';
   const isTerminal = ['BOUND', 'DECLINED', 'EXPIRED'].includes(sub.status);
 
   return (
     <div className='mx-auto max-w-6xl space-y-6 px-6 py-8'>
       {/* ── Header ── */}
-      <div className='flex items-start justify-between'>
-        <div className='flex items-center gap-4'>
-          <button
-            onClick={() => router.back()}
-            className='rounded-lg bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100'
-          >
-            <IconArrowLeft className='h-4 w-4' />
-          </button>
-          <div>
-            <div className='flex items-center gap-3'>
-              <h1 className='font-mono text-2xl font-bold text-zinc-100'>
-                {sub.reference}
-              </h1>
-              <Badge status={sub.status} uwDecision={sub.uwDecision} />
+      <div className='space-y-3'>
+        <div className='flex items-start justify-between'>
+          <div className='flex items-center gap-4'>
+            <button
+              onClick={() => router.back()}
+              className='rounded-lg bg-zinc-800 p-2 text-zinc-400 transition-colors hover:bg-zinc-700 hover:text-zinc-100'
+            >
+              <IconArrowLeft className='h-4 w-4' />
+            </button>
+            <div>
+              <div className='flex items-center gap-3'>
+                <h1 className='font-mono text-2xl font-bold text-zinc-100'>
+                  {sub.reference}
+                </h1>
+                <Badge status={sub.status} uwDecision={sub.uwDecision} />
+              </div>
+              <p className='mt-0.5 text-sm text-zinc-500'>
+                {sub.vesselName ?? 'Unnamed vessel'} · Created{' '}
+                {fmtDate(sub.createdAt)}
+              </p>
             </div>
-            <p className='mt-0.5 text-sm text-zinc-500'>
-              {sub.vesselName ?? 'Unnamed vessel'} · Created{' '}
-              {fmtDate(sub.createdAt)}
-            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className='flex items-center gap-2'>
+            {quote && (
+              <button
+                onClick={downloadSlip}
+                disabled={downloading}
+                className='flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50'
+              >
+                <IconDownload className='h-4 w-4' />
+                {downloading ? 'Generating…' : 'Quote Slip'}
+              </button>
+            )}
+            {quote && sub.status === 'QUOTED' && (
+              <button
+                onClick={sendToBroker}
+                className='flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700'
+              >
+                <IconSend className='h-4 w-4' />
+                Send to Broker
+              </button>
+            )}
+            {canReview && (
+              <button
+                onClick={() => updateStatus('REVIEW')}
+                disabled={actionLoading === 'REVIEW'}
+                className='flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50'
+              >
+                <IconActivity className='h-4 w-4' />
+                Start Review
+              </button>
+            )}
+            {canIssueQuote && !issueOpen && (
+              <button
+                onClick={openIssueForm}
+                className='flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-500'
+              >
+                <IconCheck className='h-4 w-4' />
+                Issue Quote
+              </button>
+            )}
+            {canRefer && (
+              <button
+                onClick={referSubmission}
+                disabled={actionLoading === 'REFER'}
+                className='flex items-center gap-1.5 rounded-lg bg-amber-900/50 px-3 py-2 text-sm font-medium text-amber-400 transition-colors hover:bg-amber-900/70 disabled:opacity-50'
+              >
+                <IconAlertTriangle className='h-4 w-4' />
+                Refer
+              </button>
+            )}
+            {canDecline && (
+              <button
+                onClick={() => updateStatus('DECLINED')}
+                disabled={actionLoading === 'DECLINED'}
+                className='flex items-center gap-1.5 rounded-lg bg-red-900/40 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-900/60 disabled:opacity-50'
+              >
+                <IconCircleX className='h-4 w-4' />
+                Decline
+              </button>
+            )}
+            {canBind && (
+              <button
+                onClick={() => updateStatus('BOUND')}
+                disabled={actionLoading === 'BOUND'}
+                className='flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50'
+              >
+                <IconCircleCheck className='h-4 w-4' />
+                Bind Policy
+              </button>
+            )}
+            {sub.status === 'BOUND' && (
+              <>
+                <button
+                  onClick={downloadPolicy}
+                  disabled={downloadingPolicy}
+                  className='flex items-center gap-1.5 rounded-lg bg-emerald-900/40 px-3 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-900/60 disabled:opacity-50'
+                >
+                  <IconDownload className='h-4 w-4' />
+                  {downloadingPolicy ? 'Generating…' : 'Policy'}
+                </button>
+                <span className='flex items-center gap-1.5 rounded-lg bg-emerald-900/40 px-4 py-2 text-sm font-semibold text-emerald-400'>
+                  <IconCircleCheck className='h-4 w-4' />
+                  Bound
+                </span>
+              </>
+            )}
+            {sub.status === 'DECLINED' && (
+              <span className='flex items-center gap-1.5 rounded-lg bg-red-900/40 px-4 py-2 text-sm font-semibold text-red-400'>
+                <IconCircleX className='h-4 w-4' />
+                Declined
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className='flex items-center gap-2'>
-          {quote && (
-            <button
-              onClick={downloadSlip}
-              disabled={downloading}
-              className='flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50'
-            >
-              <IconDownload className='h-4 w-4' />
-              {downloading ? 'Generating…' : 'Quote Slip'}
-            </button>
-          )}
-          {canReview && (
-            <button
-              onClick={() => updateStatus('REVIEW')}
-              disabled={actionLoading === 'REVIEW'}
-              className='flex items-center gap-1.5 rounded-lg bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-700 disabled:opacity-50'
-            >
-              <IconActivity className='h-4 w-4' />
-              Start Review
-            </button>
-          )}
-          {canRefer && (
-            <button
-              onClick={referSubmission}
-              disabled={actionLoading === 'REFER'}
-              className='flex items-center gap-1.5 rounded-lg bg-amber-900/50 px-3 py-2 text-sm font-medium text-amber-400 transition-colors hover:bg-amber-900/70 disabled:opacity-50'
-            >
-              <IconAlertTriangle className='h-4 w-4' />
-              Refer
-            </button>
-          )}
-          {canDecline && (
-            <button
-              onClick={() => updateStatus('DECLINED')}
-              disabled={actionLoading === 'DECLINED'}
-              className='flex items-center gap-1.5 rounded-lg bg-red-900/40 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-900/60 disabled:opacity-50'
-            >
-              <IconCircleX className='h-4 w-4' />
-              Decline
-            </button>
-          )}
-          {canBind && (
-            <button
-              onClick={() => updateStatus('BOUND')}
-              disabled={actionLoading === 'BOUND'}
-              className='flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50'
-            >
-              <IconCircleCheck className='h-4 w-4' />
-              Bind
-            </button>
-          )}
-          {sub.status === 'BOUND' && (
-            <span className='flex items-center gap-1.5 rounded-lg bg-emerald-900/40 px-4 py-2 text-sm font-semibold text-emerald-400'>
-              <IconCircleCheck className='h-4 w-4' />
-              Bound
-            </span>
-          )}
-          {sub.status === 'DECLINED' && (
-            <span className='flex items-center gap-1.5 rounded-lg bg-red-900/40 px-4 py-2 text-sm font-semibold text-red-400'>
-              <IconCircleX className='h-4 w-4' />
-              Declined
-            </span>
-          )}
-        </div>
+        {/* ── Issue Quote inline form ── */}
+        {issueOpen && (
+          <div className='rounded-lg border border-blue-500/40 bg-blue-950/30 p-4'>
+            <p className='mb-3 text-sm font-medium text-blue-300'>
+              Set quote validity period — quote will be issued as FIRM
+            </p>
+            <div className='flex flex-wrap items-end gap-4'>
+              <div>
+                <label className='mb-1 block text-xs text-zinc-500'>
+                  Valid From
+                </label>
+                <input
+                  type='date'
+                  value={issueValidFrom}
+                  onChange={(e) => setIssueValidFrom(e.target.value)}
+                  className='rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none'
+                />
+              </div>
+              <div>
+                <label className='mb-1 block text-xs text-zinc-500'>
+                  Valid Until
+                </label>
+                <input
+                  type='date'
+                  value={issueValidUntil}
+                  onChange={(e) => setIssueValidUntil(e.target.value)}
+                  className='rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none'
+                />
+              </div>
+              <div className='flex gap-2'>
+                <button
+                  onClick={issueQuote}
+                  disabled={actionLoading === 'QUOTED'}
+                  className='rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50'
+                >
+                  {actionLoading === 'QUOTED' ? 'Issuing…' : 'Confirm Issue'}
+                </button>
+                <button
+                  onClick={() => setIssueOpen(false)}
+                  className='rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-700'
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Premium Summary bar ── */}

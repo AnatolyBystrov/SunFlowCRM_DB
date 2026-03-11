@@ -1,6 +1,6 @@
 /**
  * types.ts — Rating Engine Type Definitions
- * Facility: LM21M0136 Appendix 6 + Appendix 7
+ * Facility: SUN-MYC-001 Appendix 6 + Appendix 7
  * Updated: added missing factors from facility audit
  */
 

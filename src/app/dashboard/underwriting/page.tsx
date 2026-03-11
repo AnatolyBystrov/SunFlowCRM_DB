@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   IconShip,
   IconCalculator,
@@ -85,6 +86,31 @@ function QuickAction({
 }
 
 export default function UnderwritingPage() {
+  const [metrics, setMetrics] = useState({
+    submissionsMTD: 0,
+    boundCount: 0,
+    pendingReview: 0,
+    declined: 0,
+    gwp: 0
+  });
+
+  useEffect(() => {
+    fetch('/api/underwriting/metrics')
+      .then((r) => r.json())
+      .then((json) => {
+        const data = json?.data;
+        if (data?.submissionsMTD !== undefined) setMetrics(data);
+      })
+      .catch(() => {
+        /* keep zeros on error */
+      });
+  }, []);
+
+  const gwpFormatted =
+    metrics.gwp >= 1000
+      ? `$${(metrics.gwp / 1000).toFixed(0)}K`
+      : `$${metrics.gwp.toFixed(0)}`;
+
   return (
     <div className='flex-1 space-y-6 p-4 pt-6 md:p-8'>
       {/* Header */}
@@ -113,28 +139,32 @@ export default function UnderwritingPage() {
       <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
         <StatCard
           title='Submissions MTD'
-          value='0'
-          subtitle='Start quoting to see metrics'
+          value={metrics.submissionsMTD}
+          subtitle={
+            metrics.submissionsMTD === 0
+              ? 'Start quoting to see metrics'
+              : 'This calendar month'
+          }
           icon={IconClipboardList}
           color='blue'
         />
         <StatCard
           title='Bound Policies'
-          value='0'
-          subtitle='Gross Written Premium: $0'
+          value={metrics.boundCount}
+          subtitle={`Gross Written Premium: ${gwpFormatted}`}
           icon={IconCheck}
           color='green'
         />
         <StatCard
           title='Pending Review'
-          value='0'
+          value={metrics.pendingReview}
           subtitle='Awaiting UW decision'
           icon={IconClock}
           color='yellow'
         />
         <StatCard
           title='Referred / Declined'
-          value='0'
+          value={metrics.declined}
           subtitle='Outside appetite'
           icon={IconAlertTriangle}
           color='red'

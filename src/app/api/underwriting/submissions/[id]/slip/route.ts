@@ -329,7 +329,7 @@ function buildSlip(sub: any, quote: any): Document {
                 alignment: AlignmentType.CENTER,
                 children: [
                   new TextRun({
-                    text: 'Coverholder: London Marine Insurance Services Ltd.  ·  Facility: LM21M0136  ·  Page ',
+                    text: 'Coverholder: London Marine Insurance Services Ltd.  ·  Facility: SUN-MYC-001  ·  Page ',
                     size: 16,
                     color: MUTED,
                     font: 'Arial'
@@ -654,9 +654,9 @@ function buildSlip(sub: any, quote: any): Document {
           // ── POLICY CONDITIONS ─────────────────────────────────
           table2col([
             sectionHeader('POLICY CONDITIONS'),
-            row2('Facility Reference', 'LM21M0136'),
+            row2('Facility Reference', 'SUN-MYC-001'),
             row2('Coverholder', 'London Marine Insurance Services Ltd.'),
-            row2('Capacity', "Lloyd's Syndicate(s) per Facility LM21M0136"),
+            row2('Capacity', "Lloyd's Syndicate(s) per Facility SUN-MYC-001"),
             row2('Class of Business', 'Marine Yacht — Hull & P&I'),
             row2('Policy Wording', 'MAR 91 / Institute Yacht Clauses 1.11.85'),
             row2('Sanctions', 'JH2010/009 Sanction Limitation Clause applies'),

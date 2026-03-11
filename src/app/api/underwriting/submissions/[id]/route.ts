@@ -63,7 +63,8 @@ export async function PATCH(
       }
 
       const body = await request.json();
-      const { status, uwNotes, uwDecision } = body;
+      const { status, uwNotes, uwDecision, quoteValidFrom, quoteValidUntil } =
+        body;
 
       if (status && !ALLOWED_STATUSES.includes(status)) {
         return apiResponse({ error: 'Invalid status' }, 400 as never);
@@ -73,17 +74,53 @@ export async function PATCH(
         return apiResponse({ error: 'Invalid uwDecision' }, 400 as never);
       }
 
-      const submission = await prisma.submission.update({
+      // Update submission
+      await prisma.submission.update({
         where: { id },
         data: {
           ...(status !== undefined && { status }),
           ...(uwNotes !== undefined && { uwNotes }),
           ...(uwDecision !== undefined && { uwDecision }),
           updatedAt: new Date()
-        },
-        include: {
-          quotes: { orderBy: { createdAt: 'desc' } }
         }
+      });
+
+      // When issuing a quote → set quote to FIRM + validity dates
+      if (status === 'QUOTED') {
+        const latestQuote = await prisma.quote.findFirst({
+          where: { submissionId: id },
+          orderBy: { createdAt: 'desc' }
+        });
+        if (latestQuote) {
+          await prisma.quote.update({
+            where: { id: latestQuote.id },
+            data: {
+              status: 'FIRM',
+              ...(quoteValidFrom && { validFrom: new Date(quoteValidFrom) }),
+              ...(quoteValidUntil && { validUntil: new Date(quoteValidUntil) })
+            }
+          });
+        }
+      }
+
+      // When binding → mark quote as BOUND
+      if (status === 'BOUND') {
+        const latestQuote = await prisma.quote.findFirst({
+          where: { submissionId: id },
+          orderBy: { createdAt: 'desc' }
+        });
+        if (latestQuote) {
+          await prisma.quote.update({
+            where: { id: latestQuote.id },
+            data: { status: 'BOUND' }
+          });
+        }
+      }
+
+      // Refetch with updated quotes
+      const submission = await prisma.submission.findFirst({
+        where: { id },
+        include: { quotes: { orderBy: { createdAt: 'desc' } } }
       });
 
       return apiResponse({ submission });
