@@ -129,3 +129,32 @@ export async function PATCH(
     return handleApiError(error);
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await withCurrentUser(request, async (user) => {
+      const { id } = await context.params;
+
+      const existing = await prisma.submission.findFirst({
+        where: { id, tenantId: user.tenantId, deleted: false },
+        select: { id: true }
+      });
+
+      if (!existing) {
+        return apiResponse({ error: 'Not found' }, 404 as never);
+      }
+
+      await prisma.submission.update({
+        where: { id },
+        data: { deleted: true, updatedAt: new Date() }
+      });
+
+      return apiResponse({ success: true });
+    });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}

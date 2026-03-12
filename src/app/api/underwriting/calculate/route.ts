@@ -130,13 +130,16 @@ export async function POST(request: NextRequest) {
           rateTableSource: result.ratingBreakdown.rateTableSource,
           hullDeductible: result.deductibles.hull,
           hullDeductiblePct: result.deductibles.hullPct / 100,
-          liabilityDed: result.deductibles.liability
+          liabilityDed: result.deductibles.liability,
+          uwFlags: result.uwFlags as string[],
+          autoDecline: result.autoDecline ?? null
         }
       });
 
       return apiResponse({ submission, quote, result }, 201);
     });
   } catch (error) {
+    console.error('[UW calculate] ERROR:', error);
     return handleApiError(error);
   }
 }

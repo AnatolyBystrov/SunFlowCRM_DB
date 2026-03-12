@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
         include: {
           submission: {
             select: {
+              id: true,
               reference: true,
               vesselName: true,
               hullValue: true,

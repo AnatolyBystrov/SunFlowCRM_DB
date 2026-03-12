@@ -204,6 +204,16 @@ export default function NewQuotePage() {
         maxSpeedKnots: form.maxSpeedKnots
           ? Number(form.maxSpeedKnots)
           : undefined,
+        tenderValue: form.tenderValue ? Number(form.tenderValue) : undefined,
+        personalProperty: form.personalProperty
+          ? Number(form.personalProperty)
+          : undefined,
+        includeTowing: form.includeTowing ?? false,
+        includeTrailer: form.includeTrailer ?? false,
+        trailerValue: form.trailerValue ? Number(form.trailerValue) : undefined,
+        medicalExpensesLimit: Number(form.medicalExpensesLimit) || 10_000,
+        uninsuredBoatersLimit: Number(form.uninsuredBoatersLimit) || 25_000,
+        crewLiabilityLimit: Number(form.crewLiabilityLimit) || 0,
         vesselName,
         brokerName,
         brokerEmail

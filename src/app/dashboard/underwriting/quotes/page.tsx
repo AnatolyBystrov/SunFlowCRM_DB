@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { IconReportMoney, IconPlus, IconShip } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type QuoteStatus =
   | 'INDICATION'
@@ -21,6 +22,7 @@ interface Quote {
   liabilityPremium: number;
   createdAt: string;
   submission: {
+    id: string;
     reference: string;
     vesselName: string | null;
     hullValue: number | null;
@@ -56,6 +58,7 @@ async function fetchQuotes(): Promise<Quote[]> {
 }
 
 export default function QuotesPage() {
+  const router = useRouter();
   const {
     data: quotes = [],
     isLoading,
@@ -136,7 +139,12 @@ export default function QuotesPage() {
               {quotes.map((q) => (
                 <tr
                   key={q.id}
-                  className='hover:bg-muted/50 border-b transition-colors last:border-0'
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/underwriting/submissions/${q.submission.id}`
+                    )
+                  }
+                  className='hover:bg-muted/50 cursor-pointer border-b transition-colors last:border-0'
                 >
                   <td className='px-4 py-3 font-mono text-xs font-medium'>
                     {q.quoteNumber}

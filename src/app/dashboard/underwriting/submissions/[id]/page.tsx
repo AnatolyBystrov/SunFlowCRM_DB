@@ -45,6 +45,8 @@ interface Quote {
   liabilityDed: number;
   optionalPremiums: Record<string, number>;
   rateTableSource: string;
+  uwFlags: string[];
+  autoDecline?: string | null;
   createdAt: string;
   validUntil?: string;
 }
@@ -467,7 +469,10 @@ export default function SubmissionDetailPage() {
     ['SUBMITTED', 'REVIEW'].includes(sub.status) && sub.uwDecision !== 'REFER';
   const canDecline = !['BOUND', 'DECLINED', 'EXPIRED'].includes(sub.status);
   const canIssueQuote = !!quote && ['SUBMITTED', 'REVIEW'].includes(sub.status);
-  const canBind = sub.status === 'QUOTED';
+  const uwFlags: string[] = (quote?.uwFlags as string[]) ?? [];
+  const autoDecline = quote?.autoDecline ?? null;
+  const hasBlocker = uwFlags.some((f) => f.includes('CANNOT BIND'));
+  const canBind = sub.status === 'QUOTED' && !autoDecline && !hasBlocker;
   const isTerminal = ['BOUND', 'DECLINED', 'EXPIRED'].includes(sub.status);
 
   return (
@@ -565,6 +570,15 @@ export default function SubmissionDetailPage() {
                 <IconCircleCheck className='h-4 w-4' />
                 Bind Policy
               </button>
+            )}
+            {sub.status === 'QUOTED' && (autoDecline || hasBlocker) && (
+              <span
+                title={autoDecline ?? 'UW flags prevent binding'}
+                className='flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-500'
+              >
+                <IconCircleX className='h-4 w-4' />
+                Bind Blocked
+              </span>
             )}
             {sub.status === 'BOUND' && (
               <>
@@ -771,6 +785,50 @@ export default function SubmissionDetailPage() {
               )}
             </Grid>
           </Section>
+
+          {/* UW Flags */}
+          {quote && (autoDecline || uwFlags.length > 0) && (
+            <div className='space-y-2 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4'>
+              <p className='text-xs font-semibold tracking-wider text-amber-400 uppercase'>
+                Underwriting Flags
+              </p>
+              {autoDecline && (
+                <div className='flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-950/30 px-3 py-2'>
+                  <IconCircleX className='mt-0.5 h-4 w-4 shrink-0 text-red-400' />
+                  <span className='text-sm text-red-300'>
+                    AUTO-DECLINE: {autoDecline}
+                  </span>
+                </div>
+              )}
+              {uwFlags.map((flag, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-2 rounded-lg px-3 py-2 ${
+                    flag.includes('CANNOT BIND')
+                      ? 'border border-red-500/40 bg-red-950/30'
+                      : 'border border-amber-500/30 bg-amber-950/20'
+                  }`}
+                >
+                  <IconAlertTriangle
+                    className={`mt-0.5 h-4 w-4 shrink-0 ${
+                      flag.includes('CANNOT BIND')
+                        ? 'text-red-400'
+                        : 'text-amber-400'
+                    }`}
+                  />
+                  <span
+                    className={`text-sm ${
+                      flag.includes('CANNOT BIND')
+                        ? 'text-red-300'
+                        : 'text-amber-300'
+                    }`}
+                  >
+                    {flag}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Rating Breakdown */}
           {quote && (
@@ -981,7 +1039,7 @@ export default function SubmissionDetailPage() {
             />
             <button
               onClick={saveNotes}
-              disabled={saving || isTerminal}
+              disabled={saving}
               className='mt-2 w-full rounded-lg bg-zinc-700 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-600 disabled:opacity-50'
             >
               {saving ? 'Saving...' : 'Save Notes'}

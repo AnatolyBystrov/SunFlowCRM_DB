@@ -1,9 +1,18 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { IconClipboardList, IconPlus, IconShip } from '@tabler/icons-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  IconClipboardList,
+  IconPlus,
+  IconSearch,
+  IconShip,
+  IconTrash,
+  IconX
+} from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 type SubmissionStatus =
   | 'DRAFT'
@@ -40,6 +49,15 @@ const STATUS_STYLES: Record<SubmissionStatus, string> = {
   EXPIRED: 'bg-gray-500/20 text-gray-500'
 };
 
+const ALL_STATUSES: SubmissionStatus[] = [
+  'SUBMITTED',
+  'REVIEW',
+  'QUOTED',
+  'BOUND',
+  'DECLINED',
+  'EXPIRED'
+];
+
 function StatusBadge({ status }: { status: SubmissionStatus }) {
   return (
     <span
@@ -59,6 +77,13 @@ async function fetchSubmissions(): Promise<Submission[]> {
 
 export default function SubmissionsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<SubmissionStatus | 'ALL'>(
+    'ALL'
+  );
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const {
     data: submissions = [],
     isLoading,
@@ -68,6 +93,36 @@ export default function SubmissionsPage() {
     queryFn: fetchSubmissions,
     staleTime: 30 * 1000
   });
+
+  const filtered = submissions.filter((s) => {
+    const matchSearch =
+      !search ||
+      s.reference.toLowerCase().includes(search.toLowerCase()) ||
+      (s.vesselName ?? '').toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === 'ALL' || s.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  async function handleDelete(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    if (!confirm('Delete this submission? This action cannot be undone.'))
+      return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/underwriting/submissions/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      toast.success('Submission deleted');
+      queryClient.invalidateQueries({
+        queryKey: ['underwriting', 'submissions']
+      });
+    } catch {
+      toast.error('Failed to delete submission');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className='flex-1 space-y-6 p-4 pt-6 md:p-8'>
@@ -83,6 +138,50 @@ export default function SubmissionsPage() {
           <IconPlus className='h-4 w-4' />
           New Quote
         </Link>
+      </div>
+
+      {/* Filters */}
+      <div className='flex flex-wrap items-center gap-3'>
+        <div className='relative max-w-xs min-w-[200px] flex-1'>
+          <IconSearch className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
+          <input
+            type='text'
+            placeholder='Search reference or vessel…'
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className='bg-card border-border w-full rounded-lg border py-2 pr-3 pl-9 text-sm outline-none focus:border-blue-500'
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className='absolute top-1/2 right-2 -translate-y-1/2'
+            >
+              <IconX className='text-muted-foreground h-4 w-4' />
+            </button>
+          )}
+        </div>
+        <div className='flex flex-wrap gap-1.5'>
+          <button
+            onClick={() => setStatusFilter('ALL')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${statusFilter === 'ALL' ? 'bg-zinc-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+          >
+            All
+          </button>
+          {ALL_STATUSES.map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(statusFilter === s ? 'ALL' : s)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${statusFilter === s ? STATUS_STYLES[s] + ' ring-1 ring-current' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        {(search || statusFilter !== 'ALL') && (
+          <span className='text-muted-foreground text-xs'>
+            {filtered.length} of {submissions.length}
+          </span>
+        )}
       </div>
 
       <div className='bg-card overflow-hidden rounded-xl border'>
@@ -117,7 +216,27 @@ export default function SubmissionsPage() {
           </div>
         )}
 
-        {!isLoading && !isError && submissions.length > 0 && (
+        {!isLoading &&
+          !isError &&
+          submissions.length > 0 &&
+          filtered.length === 0 && (
+            <div className='flex flex-col items-center justify-center gap-2 py-16 text-center'>
+              <p className='text-muted-foreground text-sm'>
+                No submissions match your filters.
+              </p>
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setStatusFilter('ALL');
+                }}
+                className='text-xs text-blue-400 hover:underline'
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+
+        {!isLoading && !isError && filtered.length > 0 && (
           <table className='w-full text-sm'>
             <thead>
               <tr className='text-muted-foreground border-b text-left text-xs tracking-wide uppercase'>
@@ -128,10 +247,11 @@ export default function SubmissionsPage() {
                 <th className='px-4 py-3 font-medium'>Status</th>
                 <th className='px-4 py-3 font-medium'>Total Premium</th>
                 <th className='px-4 py-3 font-medium'>Created</th>
+                <th className='px-4 py-3 font-medium'></th>
               </tr>
             </thead>
             <tbody>
-              {submissions.map((s) => {
+              {filtered.map((s) => {
                 const premium = s.quotes[0]?.totalPremium;
                 return (
                   <tr
@@ -172,6 +292,16 @@ export default function SubmissionsPage() {
                         month: 'short',
                         year: 'numeric'
                       })}
+                    </td>
+                    <td className='px-4 py-3'>
+                      <button
+                        onClick={(e) => handleDelete(e, s.id)}
+                        disabled={deletingId === s.id}
+                        className='text-muted-foreground rounded p-1 transition-colors hover:text-red-400 disabled:opacity-40'
+                        title='Delete submission'
+                      >
+                        <IconTrash className='h-4 w-4' />
+                      </button>
                     </td>
                   </tr>
                 );

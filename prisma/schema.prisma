@@ -1073,6 +1073,10 @@ model Quote {
   hullDeductiblePct Decimal @db.Decimal(4, 3)
   liabilityDed      Decimal @db.Decimal(10, 2)
 
+  // UW flags from engine
+  uwFlags     Json    @default("[]") // string[] — warnings, referral reasons
+  autoDecline String? // if set — hard stop reason, bind must be blocked
+
   // UW approval
   uwNotes    String?   @db.Text
   approvedBy String?
