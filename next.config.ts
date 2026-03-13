@@ -12,7 +12,8 @@ const baseConfig: NextConfig = {
     'ioredis',
     'bullmq',
     '@prisma/client',
-    '.prisma/client'
+    '.prisma/client',
+    'svix'
   ],
   images: {
     remotePatterns: [

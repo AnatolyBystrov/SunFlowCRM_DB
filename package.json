@@ -101,6 +101,7 @@
     "supertokens-auth-react": "^0.51.1",
     "supertokens-node": "^24.0.1",
     "supertokens-web-js": "^0.16.0",
+    "svix": "^1.88.0",
     "tailwind-merge": "^3.0.2",
     "tailwindcss": "^4.0.0",
     "tailwindcss-animate": "^1.0.7",

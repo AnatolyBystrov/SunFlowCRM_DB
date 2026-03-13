@@ -1,3 +1,4 @@
+import { Webhook, WebhookRequiredHeaders } from 'svix';
 import { NextRequest, NextResponse } from 'next/server';
 import { UserProvisioningService } from '@/lib/services/user-provisioning-service';
 
@@ -13,14 +14,12 @@ import { UserProvisioningService } from '@/lib/services/user-provisioning-servic
  *   - user.deleted: { type: "user.deleted", data: { id } }
  *
  * Webhook verification:
- *   Stack signs webhooks with Svix. In production, verify using the Svix library:
- *     const wh = new Webhook(secret);
- *     wh.verify(payload, headers);
- *
- * For local development, verification is skipped (no public URL needed).
+ *   Stack signs webhooks with Svix. Signature is verified using STACK_WEBHOOK_SECRET
+ *   (the Svix signing secret from Stack Auth Dashboard → Webhooks).
  *
  * Setup: Configure webhook URL in Stack Auth Dashboard → Webhooks section.
- * Local dev: Use Svix Playground or ngrok to relay webhooks.
+ *   URL: https://testcloud24.com/api/webhooks/stack
+ *   Events: user.created, user.updated, user.deleted
  */
 
 interface StackWebhookPayload {
@@ -35,61 +34,59 @@ interface StackWebhookPayload {
 }
 
 /**
- * Verify webhook signature from Stack Auth (Svix).
- * In production, install `svix` package and verify properly.
- * For dev, we check a shared secret header as a basic measure.
+ * Verify Svix webhook signature.
+ * Throws if verification fails (caller should return 401).
  */
-function verifyWebhook(request: NextRequest, body: string): boolean {
-  // In production: use Svix library
-  // const secret = process.env.STACK_WEBHOOK_SECRET;
-  // const wh = new Webhook(secret);
-  // wh.verify(body, { 'svix-id': ..., 'svix-timestamp': ..., 'svix-signature': ... });
-
+function verifyWebhookSignature(
+  request: NextRequest,
+  body: string
+): StackWebhookPayload {
   const webhookSecret = process.env.STACK_WEBHOOK_SECRET;
 
-  // If no secret configured, allow in development only
   if (!webhookSecret) {
     if (process.env.NODE_ENV === 'production') {
       console.error(
         '[Webhook] STACK_WEBHOOK_SECRET not configured in production!'
       );
-      return false;
+      throw new Error('Webhook secret not configured');
     }
     console.warn('[Webhook] Skipping signature verification (dev mode)');
-    return true;
+    return JSON.parse(body) as StackWebhookPayload;
   }
 
-  // Basic verification: check Svix headers exist
   const svixId = request.headers.get('svix-id');
   const svixTimestamp = request.headers.get('svix-timestamp');
   const svixSignature = request.headers.get('svix-signature');
 
   if (!svixId || !svixTimestamp || !svixSignature) {
     console.error('[Webhook] Missing Svix headers');
-    return false;
+    throw new Error('Missing required Svix headers');
   }
 
-  // TODO: In production, verify with Svix library:
-  // import { Webhook } from 'svix';
-  // const wh = new Webhook(webhookSecret);
-  // wh.verify(body, { 'svix-id': svixId, 'svix-timestamp': svixTimestamp, 'svix-signature': svixSignature });
+  const wh = new Webhook(webhookSecret);
+  const headers: WebhookRequiredHeaders = {
+    'svix-id': svixId,
+    'svix-timestamp': svixTimestamp,
+    'svix-signature': svixSignature
+  };
 
-  return true;
+  return wh.verify(body, headers) as StackWebhookPayload;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
 
-    // Verify webhook authenticity
-    if (!verifyWebhook(request, rawBody)) {
+    let payload: StackWebhookPayload;
+    try {
+      payload = verifyWebhookSignature(request, rawBody);
+    } catch (verifyError) {
+      console.error('[Webhook] Signature verification failed:', verifyError);
       return NextResponse.json(
         { error: 'Invalid webhook signature' },
         { status: 401 }
       );
     }
-
-    const payload: StackWebhookPayload = JSON.parse(rawBody);
 
     console.info('[Webhook] Received:', payload.type, payload.data?.id);
 

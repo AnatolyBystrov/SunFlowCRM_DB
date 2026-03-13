@@ -1,0 +1,63 @@
+# =============================================================================
+# Caddyfile — SunFlowCRM production reverse proxy
+# Domains: testcloud24.com  |  auth.testcloud24.com  |  auth-api.testcloud24.com
+# TLS is handled automatically by Caddy via Let's Encrypt.
+# =============================================================================
+
+# ── Main application ──────────────────────────────────────────────────────────
+testcloud24.com {
+    reverse_proxy localhost:3000
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # Access log
+    log {
+        output file /var/log/caddy/app.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
+
+# ── Stack Auth Dashboard (admin only) ─────────────────────────────────────────
+auth.testcloud24.com {
+    reverse_proxy localhost:8101
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/auth-dashboard.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
+
+# ── Stack Auth API (used by browser SDK) ──────────────────────────────────────
+auth-api.testcloud24.com {
+    reverse_proxy localhost:8102
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/auth-api.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}

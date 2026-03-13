@@ -211,12 +211,24 @@ services:
       # Worker secret
       INTERNAL_WORKER_SECRET: "${INTERNAL_WORKER_SECRET:?INTERNAL_WORKER_SECRET is required}"
 
+      # Stack Auth webhook verification secret (Svix signing secret)
+      STACK_WEBHOOK_SECRET: "${STACK_WEBHOOK_SECRET:-}"
+
+      # Anthropic API key for server-side AI analysis routes
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+
       # Sentry (optional)
       NEXT_PUBLIC_SENTRY_DSN: "${NEXT_PUBLIC_SENTRY_DSN:-}"
       NEXT_PUBLIC_SENTRY_ORG: "${NEXT_PUBLIC_SENTRY_ORG:-}"
       NEXT_PUBLIC_SENTRY_PROJECT: "${NEXT_PUBLIC_SENTRY_PROJECT:-}"
       SENTRY_AUTH_TOKEN: "${SENTRY_AUTH_TOKEN:-}"
       NEXT_PUBLIC_SENTRY_DISABLED: "${NEXT_PUBLIC_SENTRY_DISABLED:-false}"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/auth/signout').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ─── Background worker ────────────────────────────────────────────────────────
   worker:
