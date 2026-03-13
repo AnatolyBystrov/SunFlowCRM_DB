@@ -14,7 +14,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to Mac Mini
-    runs-on: [self-hosted, mac-mini-prod]
+    runs-on: self-hosted
     timeout-minutes: 30
 
     # Путь к production .env на сервере (устанавливается один раз вручную — см. docs/CICD_RUNNER_SETUP.md)
